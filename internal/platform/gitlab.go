@@ -90,3 +90,30 @@ func (g *GitLab) GetRepoInfo() (RepoInfo, error) {
 		DefaultBranch: result.DefaultBranch,
 	}, nil
 }
+
+// ListAuthors returns repository contributors
+func (g *GitLab) ListAuthors() ([]Author, error) {
+	cmd := exec.Command("glab", "api", "projects/:id/repository/contributors")
+	cmd.Dir = g.repoPath
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	var contributors []struct {
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}
+	if err := json.Unmarshal(out, &contributors); err != nil {
+		return nil, err
+	}
+
+	authors := make([]Author, len(contributors))
+	for i, c := range contributors {
+		authors[i] = Author{
+			Username: c.Name,
+			Name:     c.Name,
+		}
+	}
+	return authors, nil
+}

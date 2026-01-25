@@ -85,3 +85,25 @@ func (g *GitHub) GetRepoInfo() (RepoInfo, error) {
 		DefaultBranch: result.DefaultBranchRef.Name,
 	}, nil
 }
+
+// ListAuthors returns repository contributors
+func (g *GitHub) ListAuthors() ([]Author, error) {
+	cmd := exec.Command("gh", "api", "repos/{owner}/{repo}/contributors", "--paginate", "-q", ".[].login")
+	cmd.Dir = g.repoPath
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	authors := make([]Author, 0, len(lines))
+	for _, line := range lines {
+		if line != "" {
+			authors = append(authors, Author{
+				Username: line,
+				Name:     line,
+			})
+		}
+	}
+	return authors, nil
+}

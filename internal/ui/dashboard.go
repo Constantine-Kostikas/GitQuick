@@ -5,7 +5,6 @@ import (
 
 	"gitHelper/internal/platform"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -21,19 +20,19 @@ const (
 
 // Dashboard is the main UI component
 type Dashboard struct {
-	platform      platform.Platform
-	repoInfo      platform.RepoInfo
-	repoPath      string
-	author        string
-	authorInput   textinput.Model
-	editingAuthor bool
-	activeTab     Tab
-	mrList        MRList
-	checkout      *CheckoutModal
-	width         int
-	height        int
-	err           error
-	loading       bool
+	platform     platform.Platform
+	repoInfo     platform.RepoInfo
+	repoPath     string
+	author       string
+	authors      []platform.Author
+	authorPicker *AuthorPicker
+	activeTab    Tab
+	mrList       MRList
+	checkout     *CheckoutModal
+	width        int
+	height       int
+	err          error
+	loading      bool
 }
 
 // MRsLoadedMsg is sent when MRs are loaded
@@ -48,20 +47,21 @@ type RepoInfoLoadedMsg struct {
 	Err  error
 }
 
+// AuthorsLoadedMsg is sent when authors are loaded
+type AuthorsLoadedMsg struct {
+	Authors []platform.Author
+	Err     error
+}
+
 // NewDashboard creates a new dashboard
 func NewDashboard(p platform.Platform, repoPath string) Dashboard {
-	ti := textinput.New()
-	ti.Placeholder = "username or @me"
-	ti.CharLimit = 50
-
 	return Dashboard{
-		platform:    p,
-		repoPath:    repoPath,
-		author:      "@me",
-		authorInput: ti,
-		activeTab:   TabMRs,
-		mrList:      NewMRList(nil, 80, 20),
-		loading:     true,
+		platform:  p,
+		repoPath:  repoPath,
+		author:    "@me",
+		activeTab: TabMRs,
+		mrList:    NewMRList(nil, 80, 20),
+		loading:   true,
 	}
 }
 
@@ -70,6 +70,7 @@ func (d Dashboard) Init() tea.Cmd {
 	return tea.Batch(
 		d.loadRepoInfo(),
 		d.loadMRs(),
+		d.loadAuthors(),
 	)
 }
 
@@ -84,6 +85,13 @@ func (d Dashboard) loadMRs() tea.Cmd {
 	return func() tea.Msg {
 		mrs, err := d.platform.ListMRs(d.author)
 		return MRsLoadedMsg{MRs: mrs, Err: err}
+	}
+}
+
+func (d Dashboard) loadAuthors() tea.Cmd {
+	return func() tea.Msg {
+		authors, err := d.platform.ListAuthors()
+		return AuthorsLoadedMsg{Authors: authors, Err: err}
 	}
 }
 
@@ -107,27 +115,23 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return d, cmd
 	}
 
-	// Handle author input mode
-	if d.editingAuthor {
+	// Handle author picker modal
+	if d.authorPicker != nil {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "enter":
-				d.author = d.authorInput.Value()
-				if d.author == "" {
-					d.author = "@me"
-				}
-				d.editingAuthor = false
+				d.author = d.authorPicker.SelectedAuthor()
+				d.authorPicker = nil
 				d.loading = true
 				return d, d.loadMRs()
 			case "esc":
-				d.editingAuthor = false
-				d.authorInput.SetValue(d.author)
+				d.authorPicker = nil
 				return d, nil
 			}
 		}
-		var cmd tea.Cmd
-		d.authorInput, cmd = d.authorInput.Update(msg)
+		newPicker, cmd := d.authorPicker.Update(msg)
+		d.authorPicker = &newPicker
 		return d, cmd
 	}
 
@@ -143,10 +147,9 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return d, tea.Quit
 		case "a":
-			d.editingAuthor = true
-			d.authorInput.SetValue(d.author)
-			d.authorInput.Focus()
-			return d, textinput.Blink
+			picker := NewAuthorPicker(d.authors, d.author, d.width-10, d.height-6)
+			d.authorPicker = &picker
+			return d, nil
 		case "tab":
 			d.activeTab = (d.activeTab + 1) % 3
 			return d, nil
@@ -181,6 +184,12 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			d.err = msg.Err
 		} else {
 			d.mrList.SetItems(msg.MRs)
+		}
+		return d, nil
+
+	case AuthorsLoadedMsg:
+		if msg.Err == nil {
+			d.authors = msg.Authors
 		}
 		return d, nil
 	}
@@ -251,6 +260,17 @@ func (d Dashboard) View() string {
 		)
 	}
 
+	// Overlay author picker if active
+	if d.authorPicker != nil {
+		modalView := d.authorPicker.View()
+		view = lipgloss.Place(d.width, d.height,
+			lipgloss.Center, lipgloss.Center,
+			modalView,
+			lipgloss.WithWhitespaceChars(" "),
+			lipgloss.WithWhitespaceForeground(lipgloss.Color("236")),
+		)
+	}
+
 	return view
 }
 
@@ -278,9 +298,6 @@ func (d Dashboard) renderHeader() string {
 }
 
 func (d Dashboard) renderAuthorRow() string {
-	if d.editingAuthor {
-		return fmt.Sprintf("  Author: %s", d.authorInput.View())
-	}
 	return fmt.Sprintf("  Author: [%s]", d.author)
 }
 

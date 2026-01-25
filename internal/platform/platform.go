@@ -9,6 +9,12 @@ type MR struct {
 	URL    string
 }
 
+// Author represents a repository contributor
+type Author struct {
+	Username string
+	Name     string
+}
+
 // RepoInfo contains repository metadata
 type RepoInfo struct {
 	Name          string
@@ -21,4 +27,5 @@ type RepoInfo struct {
 type Platform interface {
 	ListMRs(author string) ([]MR, error)
 	GetRepoInfo() (RepoInfo, error)
+	ListAuthors() ([]Author, error)
 }
