@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Refresh MR list with `r` key
+- Author picker dropdown showing repository contributors when pressing `a`
 
 ## [0.1.3] - 2026-01-25
 
