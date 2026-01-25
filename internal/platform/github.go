@@ -1,0 +1,87 @@
+package platform
+
+import (
+	"encoding/json"
+	"os/exec"
+	"strings"
+)
+
+// GitHub implements Platform for GitHub repositories
+type GitHub struct {
+	repoPath string
+}
+
+// NewGitHub creates a GitHub platform instance
+func NewGitHub(repoPath string) *GitHub {
+	return &GitHub{repoPath: repoPath}
+}
+
+// ghPR represents the JSON structure from gh pr list
+type ghPR struct {
+	Number      int    `json:"number"`
+	Title       string `json:"title"`
+	HeadRefName string `json:"headRefName"`
+	State       string `json:"state"`
+	URL         string `json:"url"`
+}
+
+func parseGitHubMRs(data []byte) ([]MR, error) {
+	var prs []ghPR
+	if err := json.Unmarshal(data, &prs); err != nil {
+		return nil, err
+	}
+
+	mrs := make([]MR, len(prs))
+	for i, pr := range prs {
+		mrs[i] = MR{
+			Number: pr.Number,
+			Title:  pr.Title,
+			Branch: pr.HeadRefName,
+			Status: strings.ToLower(pr.State),
+			URL:    pr.URL,
+		}
+	}
+	return mrs, nil
+}
+
+// ListMRs returns pull requests for the given author
+func (g *GitHub) ListMRs(author string) ([]MR, error) {
+	cmd := exec.Command("gh", "pr", "list",
+		"--author", author,
+		"--json", "number,title,headRefName,state,url",
+	)
+	cmd.Dir = g.repoPath
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	return parseGitHubMRs(out)
+}
+
+// GetRepoInfo returns repository information
+func (g *GitHub) GetRepoInfo() (RepoInfo, error) {
+	cmd := exec.Command("gh", "repo", "view", "--json", "name,description,defaultBranchRef")
+	cmd.Dir = g.repoPath
+	out, err := cmd.Output()
+	if err != nil {
+		return RepoInfo{}, err
+	}
+
+	var result struct {
+		Name             string `json:"name"`
+		Description      string `json:"description"`
+		DefaultBranchRef struct {
+			Name string `json:"name"`
+		} `json:"defaultBranchRef"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil {
+		return RepoInfo{}, err
+	}
+
+	return RepoInfo{
+		Name:          result.Name,
+		Description:   result.Description,
+		Platform:      "github",
+		DefaultBranch: result.DefaultBranchRef.Name,
+	}, nil
+}
