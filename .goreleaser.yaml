@@ -76,17 +76,18 @@ changelog:
       - Merge branch
       - go mod tidy
   groups:
-    - title: New Features
-      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
-      order: 0
-    - title: Bug fixes
-      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
-      order: 10
-    - title: Documentation updates
-      regexp: ^.*?docs?(\([[:word:]]+\))??!?:.+$
-      order: 20
-    - title: Other work
-      order: 999
+    - title: "New Features"
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 100
+    - title: "Security updates"
+      regexp: '^.*?sec(\(.+\))??!?:.+$'
+      order: 150
+    - title: "Bug fixes"
+      regexp: '^.*?(fix|refactor)(\(.+\))??!?:.+$'
+      order: 200
+    - title: "Documentation updates"
+      regexp: ^.*?docs?(\(.+\))??!?:.+$
+      order: 400
 
 release:
   footer: >-
