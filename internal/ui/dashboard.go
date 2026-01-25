@@ -150,6 +150,12 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "tab":
 			d.activeTab = (d.activeTab + 1) % 3
 			return d, nil
+		case "r", "R":
+			if d.activeTab == TabMRs && !d.loading {
+				d.loading = true
+				return d, d.loadMRs()
+			}
+			return d, nil
 		case "enter":
 			if d.activeTab == TabMRs {
 				if mr := d.mrList.SelectedMR(); mr != nil {
@@ -292,6 +298,6 @@ func (d Dashboard) renderTabs() string {
 }
 
 func (d Dashboard) renderFooter() string {
-	help := "↑↓ navigate │ enter checkout │ a author │ tab switch │ q quit"
+	help := "↑↓ navigate │ enter checkout │ r refresh │ a author │ tab switch │ q quit"
 	return FooterStyle.Width(d.width).Render(help)
 }
