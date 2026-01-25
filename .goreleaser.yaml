@@ -50,7 +50,7 @@ archives:
       - goos: windows
         formats: [zip]
 
-
+# Commit Tests
 changelog:
   sort: asc
   abbrev: 7
