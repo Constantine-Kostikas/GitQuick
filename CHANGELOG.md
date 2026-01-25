@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Refresh MR list with `r` key
 - Author picker dropdown showing repository contributors when pressing `a`
+- Dev container configuration for GitHub Codespaces
 
 ## [0.1.3] - 2026-01-25
 

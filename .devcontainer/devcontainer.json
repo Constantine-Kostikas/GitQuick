@@ -1,0 +1,33 @@
+{
+  "name": "gtui Development",
+  "image": "mcr.microsoft.com/devcontainers/go:1.25",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers-extra/features/glab-gitlab-cli:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "streetsidesoftware.code-spell-checker",
+        "eamodio.gitlens",
+        "usernamehw.errorlens",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "go.useLanguageServer": true,
+        "go.lintTool": "golangci-lint",
+        "go.lintOnSave": "package",
+        "editor.formatOnSave": true,
+        "[go]": {
+          "editor.defaultFormatter": "golang.go"
+        }
+      }
+    },
+    "codespaces": {
+      "openFiles": ["README.md", "main.go"]
+    }
+  },
+  "postCreateCommand": "go mod download && go build -o /dev/null .",
+  "remoteUser": "vscode"
+}
