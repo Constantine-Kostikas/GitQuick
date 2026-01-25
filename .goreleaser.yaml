@@ -54,7 +54,7 @@ archives:
 changelog:
   sort: asc
   use: github
-  format: "{{ .SHA }}: {{ .Message }}{{ if .Logins }} ({{ .Logins | 'englishJoin' }}){{ end }}"
+  format: "{{ .SHA }}: {{ .Message }}{{ if .Logins }} ({{ .Logins }}){{ end }}"
   filters:
     exclude:
       - "^test:"
