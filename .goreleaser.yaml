@@ -53,7 +53,6 @@ archives:
 # Commit Tests
 changelog:
   sort: asc
-  abbrev: 7
   format: "{{ .SHA }}: {{ .Message }}{{ with .AuthorUsername }} (@{{ . }}{{ end }})"
   filters:
     exclude:
