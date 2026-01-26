@@ -53,6 +53,12 @@ type AuthorsLoadedMsg struct {
 	Err     error
 }
 
+// BranchLoadedMsg is sent when current branch is loaded
+type BranchLoadedMsg struct {
+	Branch string
+	Err    error
+}
+
 // NewDashboard creates a new dashboard
 func NewDashboard(p platform.Platform, repoPath string) Dashboard {
 	return Dashboard{
@@ -71,6 +77,7 @@ func (d Dashboard) Init() tea.Cmd {
 		d.loadRepoInfo(),
 		d.loadMRs(),
 		d.loadAuthors(),
+		d.loadBranch(),
 	)
 }
 
@@ -95,6 +102,13 @@ func (d Dashboard) loadAuthors() tea.Cmd {
 	}
 }
 
+func (d Dashboard) loadBranch() tea.Cmd {
+	return func() tea.Msg {
+		branch, err := git.GetCurrentBranch(d.repoPath)
+		return BranchLoadedMsg{Branch: branch, Err: err}
+	}
+}
+
 // Update handles messages
 func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// If checkout modal is active, delegate to it
@@ -103,7 +117,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyMsg:
 			if d.checkout.IsDone() {
 				d.checkout = nil
-				return d, nil
+				return d, d.loadBranch()
 			}
 			if msg.String() == "esc" {
 				d.checkout = nil
@@ -190,6 +204,12 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case AuthorsLoadedMsg:
 		if msg.Err == nil {
 			d.authors = msg.Authors
+		}
+		return d, nil
+
+	case BranchLoadedMsg:
+		if msg.Err == nil {
+			d.currentBranch = msg.Branch
 		}
 		return d, nil
 	}
@@ -279,21 +299,29 @@ func (d Dashboard) renderHeader() string {
 	if repoName == "" {
 		repoName = "..."
 	}
+	branch := d.currentBranch
+	if branch == "" {
+		branch = "..."
+	}
 	platformName := d.repoInfo.Platform
 	if platformName == "" {
 		platformName = "..."
 	}
 
 	left := fmt.Sprintf("repo: %s", repoName)
+	middle := fmt.Sprintf("branch: %s", branch)
 	right := fmt.Sprintf("platform: %s", platformName)
 
-	gap := d.width - len(left) - len(right) - 4
+	// Calculate gaps to spread items evenly
+	totalContent := len(left) + len(middle) + len(right)
+	totalGap := d.width - totalContent - 4
+	gap := totalGap / 2
 	if gap < 1 {
 		gap = 1
 	}
 
 	return HeaderStyle.Width(d.width).Render(
-		left + fmt.Sprintf("%*s", gap, "") + right,
+		left + fmt.Sprintf("%*s", gap, "") + middle + fmt.Sprintf("%*s", gap, "") + right,
 	)
 }
 

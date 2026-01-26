@@ -28,6 +28,17 @@ func GetRemoteURL(path string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+// GetCurrentBranch returns the current branch name
+func GetCurrentBranch(path string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = path
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 // CheckoutError wraps an error with the step that failed
 type CheckoutError struct {
 	Step string
