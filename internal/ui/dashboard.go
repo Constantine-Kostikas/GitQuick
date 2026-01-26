@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 
+	"gitHelper/internal/git"
 	"gitHelper/internal/platform"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,19 +21,20 @@ const (
 
 // Dashboard is the main UI component
 type Dashboard struct {
-	platform     platform.Platform
-	repoInfo     platform.RepoInfo
-	repoPath     string
-	author       string
-	authors      []platform.Author
-	authorPicker *AuthorPicker
-	activeTab    Tab
-	mrList       MRList
-	checkout     *CheckoutModal
-	width        int
-	height       int
-	err          error
-	loading      bool
+	platform      platform.Platform
+	repoInfo      platform.RepoInfo
+	repoPath      string
+	currentBranch string
+	author        string
+	authors       []platform.Author
+	authorPicker  *AuthorPicker
+	activeTab     Tab
+	mrList        MRList
+	checkout      *CheckoutModal
+	width         int
+	height        int
+	err           error
+	loading       bool
 }
 
 // MRsLoadedMsg is sent when MRs are loaded

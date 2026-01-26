@@ -3,12 +3,13 @@ package ui
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	// Colors
-	primaryColor   = lipgloss.Color("39")  // Blue
-	secondaryColor = lipgloss.Color("245") // Gray
-	successColor   = lipgloss.Color("42")  // Green
-	errorColor     = lipgloss.Color("196") // Red
-	selectedColor  = lipgloss.Color("170") // Purple
+	// Colors - night-friendly terminal palette
+	primaryColor   = lipgloss.Color("36")  // Dark cyan
+	secondaryColor = lipgloss.Color("242") // Dim gray
+	successColor   = lipgloss.Color("35")  // Muted green
+	errorColor     = lipgloss.Color("167") // Soft red
+	selectedColor  = lipgloss.Color("35")  // Muted green
+	accentColor    = lipgloss.Color("72")  // Teal
 
 	// Header styles
 	HeaderStyle = lipgloss.NewStyle().
@@ -34,8 +35,26 @@ var (
 				Foreground(selectedColor).
 				Bold(true)
 
+	SelectedRowStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(accentColor).
+				Padding(0, 1)
+
+	NormalRowStyle = lipgloss.NewStyle().
+			Border(lipgloss.HiddenBorder()).
+			Padding(0, 1)
+
 	NormalItemStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("252"))
+			Foreground(lipgloss.Color("250"))
+
+	// Selection indicator
+	SelectedIndicator = lipgloss.NewStyle().
+				Foreground(accentColor).
+				Bold(true)
+
+	// Dimmed style for descriptions
+	DimStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("244"))
 
 	// Status styles
 	StatusOpenStyle = lipgloss.NewStyle().
@@ -45,7 +64,7 @@ var (
 				Foreground(secondaryColor)
 
 	StatusMergedStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("141")) // Purple
+				Foreground(accentColor) // Teal
 
 	StatusClosedStyle = lipgloss.NewStyle().
 				Foreground(errorColor)
@@ -61,8 +80,8 @@ var (
 	// Modal style
 	ModalStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(primaryColor).
-			Padding(1, 2)
+			BorderForeground(accentColor).
+			Padding(0, 2)
 
 	// Error style
 	ErrorStyle = lipgloss.NewStyle().

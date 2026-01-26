@@ -2,11 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"io"
 
 	"gitHelper/internal/platform"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // MRItem wraps an MR for the list component
@@ -26,6 +28,60 @@ func (i MRItem) FilterValue() string {
 	return i.MR.Title
 }
 
+// CompactDelegate is a custom delegate for compact MR list rendering
+type CompactDelegate struct{}
+
+func (d CompactDelegate) Height() int                             { return 3 }
+func (d CompactDelegate) Spacing() int                            { return 0 }
+func (d CompactDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+
+func (d CompactDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	mrItem, ok := item.(MRItem)
+	if !ok {
+		return
+	}
+
+	mr := mrItem.MR
+	isSelected := index == m.Index()
+
+	// Status indicator
+	var status string
+	switch mr.Status {
+	case "open":
+		status = StatusOpenStyle.Render("●")
+	case "draft":
+		status = StatusDraftStyle.Render("○")
+	case "merged":
+		status = StatusMergedStyle.Render("●")
+	case "closed":
+		status = StatusClosedStyle.Render("●")
+	default:
+		status = StatusDraftStyle.Render("○")
+	}
+
+	// Format: [indicator] [status] #number title (branch)
+	number := fmt.Sprintf("#%-4d", mr.Number)
+	title := mr.Title
+	if len(title) > 50 {
+		title = title[:47] + "..."
+	}
+
+	var line string
+	if isSelected {
+		titleStyled := SelectedItemStyle.Render(fmt.Sprintf("%s %s", number, title))
+		branchStyled := SelectedItemStyle.Render(fmt.Sprintf("(%s)", mr.Branch))
+		content := fmt.Sprintf("%s %s %s", status, titleStyled, branchStyled)
+		line = SelectedRowStyle.Render(content)
+	} else {
+		titleStyled := NormalItemStyle.Render(fmt.Sprintf("%s %s", number, title))
+		branchStyled := DimStyle.Render(fmt.Sprintf("(%s)", mr.Branch))
+		content := fmt.Sprintf("%s %s %s", status, titleStyled, branchStyled)
+		line = NormalRowStyle.Render(content)
+	}
+
+	fmt.Fprint(w, line)
+}
+
 // MRList is a bubbletea component for displaying MRs
 type MRList struct {
 	list   list.Model
@@ -40,11 +96,16 @@ func NewMRList(mrs []platform.MR, width, height int) MRList {
 		items[i] = MRItem{MR: mr}
 	}
 
-	l := list.New(items, list.NewDefaultDelegate(), width, height)
-	l.Title = "Merge Requests"
+	l := list.New(items, CompactDelegate{}, width, height)
+	l.Title = ""
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
-	l.Styles.Title = ActiveTabStyle
+	l.SetShowHelp(false)
+	l.SetShowPagination(false)
+	l.Styles.TitleBar = lipgloss.NewStyle()
+	l.Styles.Title = lipgloss.NewStyle()
+	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(accentColor)
+	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(accentColor)
 
 	return MRList{
 		list:   l,
