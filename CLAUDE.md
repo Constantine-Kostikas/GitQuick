@@ -1,8 +1,11 @@
-# gitHelper Project Context
+# gitQuick Project Context
+**FOR CLAUDE** The project is called `gitQuick` regardless of the repo name
 
 ## Overview
 
-**gitHelper** (`gtui`) is a terminal-based user interface (TUI) utility written in Go that streamlines Git workflow by providing quick access to Merge Requests (MRs) and Pull Requests (PRs) across GitHub and GitLab.
+**GitQuick** (`gq`) is a terminal-based user interface (TUI) utility written in Go that streamlines Git workflow by providing quick access to Merge Requests (MRs) and Pull Requests (PRs) across GitHub and GitLab.
+
+**Current Version:** 0.1.3
 
 ## Key Features
 
@@ -11,6 +14,8 @@
 - Platform auto-detection (GitHub vs GitLab)
 - Interactive tab-based dashboard
 - Real-time checkout progress with step-by-step feedback
+- Author picker showing repository contributors
+- Refresh functionality for MR lists
 
 ## Technology Stack
 
@@ -18,88 +23,238 @@
 - **UI Framework**: Bubbletea + Lipgloss + Bubbles (Charmbracelet ecosystem)
 - **External CLIs**: `git`, `gh` (GitHub CLI), `glab` (GitLab CLI)
 - **Build/Release**: GoReleaser v2, GitHub Actions
+- **Signing**: GPG-signed releases
 
 ## Project Structure
 
 ```
 gitHelper/
-├── main.go                    # Entry point - validates repo, detects platform, runs TUI
-├── go.mod / go.sum           # Go modules
-├── .goreleaser.yaml          # Multi-platform build config
+├── main.go                           # Entry point (validates repo, detects platform, runs TUI)
+├── go.mod / go.sum                   # Go modules (Go 1.25)
+├── .goreleaser.yaml                  # Multi-platform release config (v2, GPG signed)
+├── CHANGELOG.md                      # Version history
+├── CLAUDE.md                         # This file
+├── .gitignore
+│
+├── .github/workflows/
+│   ├── go.yml                        # CI workflow (build & test on push/PR)
+│   └── release.yml                   # GoReleaser CD workflow (on tag push)
+│
+├── docs/plans/
+│   ├── 2026-01-25-githelper-design.md        # Architecture & design docs
+│   └── 2026-01-25-githelper-implementation.md # Step-by-step implementation guide
+│
 ├── internal/
-│   ├── git/                  # Git operations
-│   │   ├── git.go            # IsGitRepo, GetRemoteURL, Checkout (fetch→checkout→pull)
-│   │   └── git_test.go
-│   ├── platform/             # Platform abstraction
-│   │   ├── platform.go       # Interface: Platform, MR, RepoInfo types
-│   │   ├── detect.go         # DetectPlatformFromURL, NewPlatform factory
-│   │   ├── github.go         # GitHub impl via `gh` CLI
-│   │   ├── gitlab.go         # GitLab impl via `glab` CLI
-│   │   └── *_test.go
-│   └── ui/                   # TUI components
-│       ├── dashboard.go      # Main Bubbletea model, tabs, state management
-│       ├── mrlist.go         # Scrollable MR list with search
-│       ├── checkout.go       # Checkout modal with progress states
-│       └── styles.go         # Lipgloss styling definitions
-├── docs/plans/               # Design documents
-└── .github/workflows/        # CI (go.yml) and release (release.yml)
+│   ├── cmd/
+│   │   └── run.go                    # Command execution wrapper with 30s timeout
+│   │
+│   ├── git/                          # Git operations package
+│   │   ├── git.go                    # IsGitRepo, GetRemoteURL, GetCurrentBranch, Checkout
+│   │   └── git_test.go               # Unit tests
+│   │
+│   ├── platform/                     # Platform abstraction layer
+│   │   ├── platform.go               # Platform interface, MR, Author, RepoInfo types
+│   │   ├── detect.go                 # DetectPlatformFromURL, NewPlatform factory
+│   │   ├── detect_test.go
+│   │   ├── github.go                 # GitHub impl via `gh` CLI
+│   │   ├── github_test.go
+│   │   ├── gitlab.go                 # GitLab impl via `glab` CLI
+│   │   └── gitlab_test.go
+│   │
+│   └── ui/                           # Bubbletea TUI components
+│       ├── styles.go                 # Lipgloss styling definitions
+│       ├── dashboard.go              # Main model, tabs, state management
+│       ├── mrlist.go                 # Scrollable MR list component
+│       ├── checkout.go               # Checkout modal with progress states
+│       └── authorpicker.go           # Author selection modal
+│
+└── dist/                             # Build output directory
 ```
 
-## Key Patterns
+## Key Types and Interfaces
 
-### Platform Abstraction
-- `Platform` interface with `ListMRs(author)` and `GetRepoInfo()`
-- `MR` struct: Number, Title, Branch, Status (open/draft/merged/closed), URL
-- Factory function `NewPlatform()` returns GitHub or GitLab implementation
+### Platform Package (`internal/platform/`)
 
-### UI Architecture (Bubbletea)
-- Dashboard is the root model orchestrating all UI
-- Three tabs: MRs (active), Issues (placeholder), Branches (placeholder)
-- CheckoutModal overlays dashboard with progress states: Fetching → CheckingOut → Pulling → Done/Error
+```go
+type Platform interface {
+    ListMRs(author string) ([]MR, error)      // Get PRs/MRs by author (@me supported)
+    GetRepoInfo() (RepoInfo, error)           // Get repo metadata
+    ListAuthors() ([]Author, error)           // List repository contributors
+}
 
-### Key Bindings
-- `q`/`Ctrl+C`: Quit
-- `↑↓`: Navigate list
-- `Enter`: Checkout selected MR branch
-- `a`: Edit author filter
-- `Tab`: Switch tabs
+type MR struct {
+    Number int      // PR/MR number
+    Title  string   // Title
+    Branch string   // Source branch
+    Status string   // "open", "draft", "merged", "closed"
+    URL    string   // Link to PR/MR
+}
+
+type Author struct {
+    Username string // GitHub/GitLab username
+    Name     string // Display name
+}
+
+type RepoInfo struct {
+    Name          string // Repository name
+    Description   string // Repo description
+    Platform      string // "github" or "gitlab"
+    DefaultBranch string // Default branch name
+}
+```
+
+### Git Package (`internal/git/`)
+
+```go
+type CheckoutError struct {
+    Step string // "fetch", "checkout", or "pull"
+    Err  error  // Underlying error
+}
+
+func IsGitRepo(path string) bool
+func GetRemoteURL(path string) (string, error)
+func GetCurrentBranch(path string) (string, error)
+func Checkout(path, branch string) error  // fetch → checkout → pull
+```
+
+### UI Components (`internal/ui/`)
+
+- **Dashboard**: Root model orchestrating all UI, manages tabs and state
+- **MRList**: Scrollable list with fuzzy filtering
+- **CheckoutModal**: Progress overlay (Fetching → CheckingOut → Pulling → Done/Error)
+- **AuthorPicker**: Modal for selecting author filter from contributors
+
+## Application Flow
+
+1. Get current working directory
+2. Validate it's a git repository (`git.IsGitRepo()`)
+3. Retrieve remote URL (`git.GetRemoteURL()`)
+4. Auto-detect platform from URL (`platform.DetectPlatformFromURL()`)
+5. Create appropriate platform instance (`platform.NewPlatform()`)
+6. Initialize Bubbletea TUI with Dashboard
+7. Async load: repo info, current branch, authors, MR list
+8. Run event loop with alternative screen mode
+
+## Keyboard Bindings
+
+| Key | Action |
+|-----|--------|
+| `q` / `Ctrl+C` | Quit application |
+| `Tab` | Switch between MRs/Issues/Branches tabs |
+| `↑↓` / `j/k` | Navigate list |
+| `Enter` | Checkout selected MR branch |
+| `a` | Open author picker modal |
+| `r` / `R` | Refresh MR list |
+| `Esc` | Cancel/close modal |
+
+## External CLI Commands
+
+**GitHub (via `gh`):**
+```bash
+gh pr list --author <author> --json number,title,headRefName,state,url
+gh repo view --json name,description,defaultBranchRef
+gh api repos/{owner}/{repo}/contributors --paginate -q .[].login
+```
+
+**GitLab (via `glab`):**
+```bash
+glab mr list -F json --author <author>
+glab repo view -F json
+glab api projects/:id/members/all
+```
+
+**Git:**
+```bash
+git remote get-url origin
+git rev-parse --abbrev-ref HEAD
+git fetch origin
+git checkout <branch>
+git pull
+```
 
 ## Build & Test
 
 ```bash
-# Run tests
+# Run all tests
 go test ./...
 
-# Build locally
-go build -o dist/gtui .
+# Run tests with verbose output
+go test -v ./...
 
-# Release (requires GPG key)
+# Build locally
+go build -o dist/gq .
+
+# Run locally
+./dist/gq
+
+# Release (requires GPG key and GITHUB_TOKEN)
 goreleaser release --clean
 ```
 
 ## Dependencies
 
-**Direct**:
-- `github.com/charmbracelet/bubbles` v0.21.0
-- `github.com/charmbracelet/bubbletea` v1.3.10
-- `github.com/charmbracelet/lipgloss` v1.1.0
+**Direct (go.mod):**
+- `github.com/charmbracelet/bubbles` v0.21.0 - List, spinner, textinput
+- `github.com/charmbracelet/bubbletea` v1.3.10 - TUI framework
+- `github.com/charmbracelet/lipgloss` v1.1.0 - Styling/layout
 
-**Runtime Requirements**:
+**Runtime Requirements:**
 - `git` - for repo operations
-- `gh` - for GitHub repos (must be authenticated)
-- `glab` - for GitLab repos (must be authenticated)
+- `gh` - for GitHub repos (must be authenticated via `gh auth login`)
+- `glab` - for GitLab repos (must be authenticated via `glab auth login`)
 
-## Recent Work
+## CI/CD
 
-The project is feature-complete and release-ready. Recent commits focused on:
-- GoReleaser v2 configuration fixes
-- GPG signing setup for releases
-- Cleanup of unused files
+**Build Workflow (`.github/workflows/go.yml`):**
+- Triggers: Push to main, PRs to main
+- Go 1.25 on Ubuntu latest
+- Steps: checkout, setup Go, build, test
+
+**Release Workflow (`.github/workflows/release.yml`):**
+- Triggers: Tag push matching `v*`
+- GoReleaser v2 with GPG signing
+- Builds for: Linux, Darwin (macOS), Windows × amd64/arm64
+- Requires secrets: `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE`, `GPG_FINGERPRINT`
+
+## Testing
+
+9 unit tests across packages (all passing):
+- `internal/git/` - IsGitRepo, GetRemoteURL, Checkout error handling
+- `internal/platform/` - URL detection, platform factory, JSON parsing
+
+No UI tests (Bubbletea testing is complex).
+
+## Version History
+
+- **v0.1.3** - GoReleaser v2 configuration fixes
+- **v0.1.2** - GoReleaser build configuration fix
+- **v0.1.1** - Added GPG signing for releases
+- **v0.1.0** - Initial release with full feature set
+
+## Key Patterns
+
+### Platform Abstraction
+- Interface-based design allows adding new platforms
+- Factory pattern via `NewPlatform()`
+- CLI wrapping with JSON output parsing
+- 30-second timeout on all commands
+
+### Bubbletea Architecture
+- Model-Update-View pattern
+- Custom message types for async operations
+- `tea.Batch()` for parallel loading
+- Modal overlays on main dashboard
+
+### Styling
+- Lipgloss predefined styles in `styles.go`
+- Night-friendly color palette (cyan, teal, green)
+- Consistent active/inactive states
 
 ## Future Considerations
 
-Per design docs, potential enhancements include:
+Per design docs, potential enhancements:
 - Self-hosted GitLab/GitHub Enterprise support via config file
 - Issues and Branches tab implementations
 - CI status display in MR list
 - Caching for faster startup
+- Configurable key bindings
