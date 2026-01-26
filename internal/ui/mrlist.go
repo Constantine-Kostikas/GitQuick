@@ -79,7 +79,7 @@ func (d CompactDelegate) Render(w io.Writer, m list.Model, index int, item list.
 		line = NormalRowStyle.Render(content)
 	}
 
-	fmt.Fprint(w, line)
+	_, _ = fmt.Fprint(w, line)
 }
 
 // MRList is a bubbletea component for displaying MRs

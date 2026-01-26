@@ -12,7 +12,12 @@ func TestIsGitRepo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func(path string) {
+		err := os.RemoveAll(path)
+		if err != nil {
+			t.Error(err)
+		}
+	}(tmpDir)
 
 	if IsGitRepo(tmpDir) {
 		t.Error("expected false for non-git directory")
@@ -36,7 +41,12 @@ func TestGetRemoteURL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func(path string) {
+		err := os.RemoveAll(path)
+		if err != nil {
+			t.Error(err)
+		}
+	}(tmpDir)
 
 	_, err = GetRemoteURL(tmpDir)
 	if err == nil {
@@ -49,7 +59,12 @@ func TestCheckout_NotGitRepo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func(path string) {
+		err := os.RemoveAll(path)
+		if err != nil {
+			t.Error(err)
+		}
+	}(tmpDir)
 
 	err = Checkout(tmpDir, "main")
 	if err == nil {

@@ -64,7 +64,7 @@ func (d AuthorDelegate) Render(w io.Writer, m list.Model, index int, item list.I
 		line = NormalRowStyle.Render(NormalItemStyle.Render(content))
 	}
 
-	fmt.Fprint(w, line)
+	_, _ = fmt.Fprint(w, line)
 }
 
 // AuthorPicker is a modal for selecting an author
