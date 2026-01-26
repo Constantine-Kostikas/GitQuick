@@ -241,25 +241,34 @@ func (d Dashboard) View() string {
 	// Tabs
 	tabs := d.renderTabs()
 
+	// Footer
+	footer := d.renderFooter()
+
+	// Calculate content height
+	chromeHeight := lipgloss.Height(header) + lipgloss.Height(authorRow) + lipgloss.Height(tabs) + lipgloss.Height(footer)
+	contentHeight := d.height - chromeHeight
+
 	// Content
-	var content string
+	var rawContent string
 	if d.loading {
-		content = "\n  Loading...\n"
+		rawContent = "Loading..."
 	} else if d.err != nil {
-		content = "\n  " + ErrorStyle.Render("Error: "+d.err.Error()) + "\n"
+		rawContent = ErrorStyle.Render("Error: " + d.err.Error())
 	} else {
 		switch d.activeTab {
 		case TabMRs:
-			content = d.mrList.View()
+			rawContent = d.mrList.View()
 		case TabIssues:
-			content = "\n  Issues tab (coming soon)\n"
+			rawContent = "Issues tab (coming soon)"
 		case TabBranches:
-			content = "\n  Branches tab (coming soon)\n"
+			rawContent = "Branches tab (coming soon)"
 		}
 	}
 
-	// Footer
-	footer := d.renderFooter()
+	content := lipgloss.NewStyle().
+		Width(d.width).
+		Height(contentHeight).
+		Render(rawContent)
 
 	// Combine
 	view := lipgloss.JoinVertical(lipgloss.Left,
@@ -345,6 +354,6 @@ func (d Dashboard) renderTabs() string {
 }
 
 func (d Dashboard) renderFooter() string {
-	help := "↑↓ navigate │ enter checkout │ r refresh │ a author │ tab switch │ q quit"
-	return FooterStyle.Width(d.width).Render(help)
+	help := "↑↓ nav │ enter checkout │ r refresh │ a author │ tab switch │ q quit"
+	return FooterStyle.Align(lipgloss.Center).Width(d.width).Render(help)
 }
