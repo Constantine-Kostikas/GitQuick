@@ -70,10 +70,7 @@ func (d AuthorDelegate) Render(w io.Writer, m list.Model, index int, item list.I
 // AuthorPicker is a modal for selecting an author
 type AuthorPicker struct {
 	list      list.Model
-	selected  string
 	listWidth int
-	width     int
-	height    int
 }
 
 // NewAuthorPicker creates a new author picker
@@ -108,10 +105,7 @@ func NewAuthorPicker(authors []platform.Author, currentAuthor string, width, hei
 
 	return AuthorPicker{
 		list:      l,
-		selected:  currentAuthor,
 		listWidth: listWidth,
-		width:     width,
-		height:    height,
 	}
 }
 
