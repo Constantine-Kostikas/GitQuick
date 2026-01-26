@@ -2,9 +2,10 @@ package git
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"gitHelper/internal/cmd"
 )
 
 // IsGitRepo checks if the given path is inside a git repository
@@ -19,9 +20,7 @@ func IsGitRepo(path string) bool {
 
 // GetRemoteURL returns the origin remote URL for the repo at path
 func GetRemoteURL(path string) (string, error) {
-	cmd := exec.Command("git", "remote", "get-url", "origin")
-	cmd.Dir = path
-	out, err := cmd.Output()
+	out, err := cmd.Run(path, "git", "remote", "get-url", "origin")
 	if err != nil {
 		return "", err
 	}
@@ -30,9 +29,7 @@ func GetRemoteURL(path string) (string, error) {
 
 // GetCurrentBranch returns the current branch name
 func GetCurrentBranch(path string) (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	cmd.Dir = path
-	out, err := cmd.Output()
+	out, err := cmd.Run(path, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -56,23 +53,17 @@ func (e *CheckoutError) Unwrap() error {
 // Checkout fetches, checks out the branch, and pulls
 func Checkout(path, branch string) error {
 	// Fetch
-	fetchCmd := exec.Command("git", "fetch", "origin")
-	fetchCmd.Dir = path
-	if err := fetchCmd.Run(); err != nil {
+	if err := cmd.RunSimple(path, "git", "fetch", "origin"); err != nil {
 		return &CheckoutError{Step: "fetch", Err: err}
 	}
 
 	// Checkout
-	checkoutCmd := exec.Command("git", "checkout", branch)
-	checkoutCmd.Dir = path
-	if err := checkoutCmd.Run(); err != nil {
+	if err := cmd.RunSimple(path, "git", "checkout", branch); err != nil {
 		return &CheckoutError{Step: "checkout", Err: err}
 	}
 
 	// Pull
-	pullCmd := exec.Command("git", "pull")
-	pullCmd.Dir = path
-	if err := pullCmd.Run(); err != nil {
+	if err := cmd.RunSimple(path, "git", "pull"); err != nil {
 		return &CheckoutError{Step: "pull", Err: err}
 	}
 

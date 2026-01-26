@@ -2,7 +2,8 @@ package platform
 
 import (
 	"encoding/json"
-	"os/exec"
+
+	"gitHelper/internal/cmd"
 )
 
 // GitLab implements Platform for GitLab repositories
@@ -49,16 +50,7 @@ func parseGitLabMRs(data []byte) ([]MR, error) {
 
 // ListMRs returns merge requests for the given author
 func (g *GitLab) ListMRs(author string) ([]MR, error) {
-	args := []string{"mr", "list", "-F", "json"}
-	if author == "@me" {
-		args = append(args, "--author", "@me")
-	} else {
-		args = append(args, "--author", author)
-	}
-
-	cmd := exec.Command("glab", args...)
-	cmd.Dir = g.repoPath
-	out, err := cmd.Output()
+	out, err := cmd.Run(g.repoPath, "glab", "mr", "list", "-F", "json", "--author", author)
 	if err != nil {
 		return nil, err
 	}
@@ -67,9 +59,7 @@ func (g *GitLab) ListMRs(author string) ([]MR, error) {
 
 // GetRepoInfo returns repository information
 func (g *GitLab) GetRepoInfo() (RepoInfo, error) {
-	cmd := exec.Command("glab", "repo", "view", "-F", "json")
-	cmd.Dir = g.repoPath
-	out, err := cmd.Output()
+	out, err := cmd.Run(g.repoPath, "glab", "repo", "view", "-F", "json")
 	if err != nil {
 		return RepoInfo{}, err
 	}
@@ -91,28 +81,26 @@ func (g *GitLab) GetRepoInfo() (RepoInfo, error) {
 	}, nil
 }
 
-// ListAuthors returns repository contributors
+// ListAuthors returns repository members (uses members API for proper usernames)
 func (g *GitLab) ListAuthors() ([]Author, error) {
-	cmd := exec.Command("glab", "api", "projects/:id/repository/contributors")
-	cmd.Dir = g.repoPath
-	out, err := cmd.Output()
+	out, err := cmd.Run(g.repoPath, "glab", "api", "projects/:id/members/all")
 	if err != nil {
 		return nil, err
 	}
 
-	var contributors []struct {
-		Name  string `json:"name"`
-		Email string `json:"email"`
+	var members []struct {
+		Username string `json:"username"`
+		Name     string `json:"name"`
 	}
-	if err := json.Unmarshal(out, &contributors); err != nil {
+	if err := json.Unmarshal(out, &members); err != nil {
 		return nil, err
 	}
 
-	authors := make([]Author, len(contributors))
-	for i, c := range contributors {
+	authors := make([]Author, len(members))
+	for i, m := range members {
 		authors[i] = Author{
-			Username: c.Name,
-			Name:     c.Name,
+			Username: m.Username,
+			Name:     m.Name,
 		}
 	}
 	return authors, nil

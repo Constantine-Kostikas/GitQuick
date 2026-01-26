@@ -2,8 +2,9 @@ package platform
 
 import (
 	"encoding/json"
-	"os/exec"
 	"strings"
+
+	"gitHelper/internal/cmd"
 )
 
 // GitHub implements Platform for GitHub repositories
@@ -46,12 +47,10 @@ func parseGitHubMRs(data []byte) ([]MR, error) {
 
 // ListMRs returns pull requests for the given author
 func (g *GitHub) ListMRs(author string) ([]MR, error) {
-	cmd := exec.Command("gh", "pr", "list",
+	out, err := cmd.Run(g.repoPath, "gh", "pr", "list",
 		"--author", author,
 		"--json", "number,title,headRefName,state,url",
 	)
-	cmd.Dir = g.repoPath
-	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}
@@ -60,9 +59,7 @@ func (g *GitHub) ListMRs(author string) ([]MR, error) {
 
 // GetRepoInfo returns repository information
 func (g *GitHub) GetRepoInfo() (RepoInfo, error) {
-	cmd := exec.Command("gh", "repo", "view", "--json", "name,description,defaultBranchRef")
-	cmd.Dir = g.repoPath
-	out, err := cmd.Output()
+	out, err := cmd.Run(g.repoPath, "gh", "repo", "view", "--json", "name,description,defaultBranchRef")
 	if err != nil {
 		return RepoInfo{}, err
 	}
@@ -88,9 +85,7 @@ func (g *GitHub) GetRepoInfo() (RepoInfo, error) {
 
 // ListAuthors returns repository contributors
 func (g *GitHub) ListAuthors() ([]Author, error) {
-	cmd := exec.Command("gh", "api", "repos/{owner}/{repo}/contributors", "--paginate", "-q", ".[].login")
-	cmd.Dir = g.repoPath
-	out, err := cmd.Output()
+	out, err := cmd.Run(g.repoPath, "gh", "api", "repos/{owner}/{repo}/contributors", "--paginate", "-q", ".[].login")
 	if err != nil {
 		return nil, err
 	}
