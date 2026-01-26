@@ -40,7 +40,7 @@ type AuthorPicker struct {
 func NewAuthorPicker(authors []platform.Author, currentAuthor string, width, height int) AuthorPicker {
 	// Add @me as the first option
 	items := make([]list.Item, 0, len(authors)+1)
-	items = append(items, AuthorItem{Author: platform.Author{Username: "@me", Name: "Myself"}})
+	items = append(items, AuthorItem{Author: platform.Author{Username: "@me", Name: ""}})
 
 	for _, author := range authors {
 		items = append(items, AuthorItem{Author: author})
