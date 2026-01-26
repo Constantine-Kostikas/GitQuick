@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"fmt"
+	"io"
+
 	"gitHelper/internal/platform"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -28,12 +31,49 @@ func (i AuthorItem) FilterValue() string {
 	return i.Author.Username
 }
 
+// AuthorDelegate is a custom delegate for author list rendering
+type AuthorDelegate struct{}
+
+func (d AuthorDelegate) Height() int                             { return 3 }
+func (d AuthorDelegate) Spacing() int                            { return 0 }
+func (d AuthorDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+
+func (d AuthorDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	authorItem, ok := item.(AuthorItem)
+	if !ok {
+		return
+	}
+
+	author := authorItem.Author
+	isSelected := index == m.Index()
+
+	username := author.Username
+	name := author.Name
+
+	var content string
+	if name != "" && name != username {
+		content = fmt.Sprintf("%s (%s)", username, name)
+	} else {
+		content = username
+	}
+
+	var line string
+	if isSelected {
+		line = SelectedRowStyle.Render(SelectedItemStyle.Render(content))
+	} else {
+		line = NormalRowStyle.Render(NormalItemStyle.Render(content))
+	}
+
+	fmt.Fprint(w, line)
+}
+
 // AuthorPicker is a modal for selecting an author
 type AuthorPicker struct {
-	list     list.Model
-	selected string
-	width    int
-	height   int
+	list      list.Model
+	selected  string
+	listWidth int
+	width     int
+	height    int
 }
 
 // NewAuthorPicker creates a new author picker
@@ -46,30 +86,32 @@ func NewAuthorPicker(authors []platform.Author, currentAuthor string, width, hei
 		items = append(items, AuthorItem{Author: author})
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.Foreground(lipgloss.Color("170"))
-	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.Foreground(lipgloss.Color("170"))
-
 	listWidth := width - 4
 	listHeight := height - 4
-	if listWidth < 30 {
-		listWidth = 30
+	if listWidth < 40 {
+		listWidth = 40
 	}
-	if listHeight < 10 {
-		listHeight = 10
+	if listHeight < 15 {
+		listHeight = 15
 	}
 
-	l := list.New(items, delegate, listWidth, listHeight)
-	l.Title = "Select Author"
+	l := list.New(items, AuthorDelegate{}, listWidth, listHeight)
+	l.Title = ""
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
-	l.Styles.Title = ActiveTabStyle
+	l.SetShowHelp(false)
+	l.SetShowPagination(false)
+	l.Styles.TitleBar = lipgloss.NewStyle()
+	l.Styles.Title = lipgloss.NewStyle()
+	l.Styles.FilterPrompt = lipgloss.NewStyle().Foreground(accentColor)
+	l.Styles.FilterCursor = lipgloss.NewStyle().Foreground(accentColor)
 
 	return AuthorPicker{
-		list:     l,
-		selected: currentAuthor,
-		width:    width,
-		height:   height,
+		list:      l,
+		selected:  currentAuthor,
+		listWidth: listWidth,
+		width:     width,
+		height:    height,
 	}
 }
 
@@ -82,12 +124,7 @@ func (p AuthorPicker) Update(msg tea.Msg) (AuthorPicker, tea.Cmd) {
 
 // View renders the picker
 func (p AuthorPicker) View() string {
-	style := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
-		Padding(1, 2)
-
-	return style.Render(p.list.View())
+	return ModalStyle.Width(p.listWidth).Render(p.list.View())
 }
 
 // SelectedAuthor returns the currently highlighted author
