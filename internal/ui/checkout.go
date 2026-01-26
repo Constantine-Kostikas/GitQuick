@@ -10,13 +10,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// CheckoutState represents the current step in checkout
+// CheckoutState represents the checkout status
 type CheckoutState int
 
 const (
-	CheckoutFetching CheckoutState = iota
-	CheckoutCheckingOut
-	CheckoutPulling
+	CheckoutInProgress CheckoutState = iota
 	CheckoutDone
 	CheckoutError
 )
@@ -28,13 +26,7 @@ type CheckoutModal struct {
 	state    CheckoutState
 	spinner  spinner.Model
 	err      error
-	steps    []stepStatus
-}
-
-type stepStatus struct {
-	name   string
-	done   bool
-	failed bool
+	errStep  string
 }
 
 // CheckoutCompleteMsg is sent when checkout finishes
@@ -50,13 +42,8 @@ func NewCheckoutModal(mr platform.MR, repoPath string) CheckoutModal {
 	return CheckoutModal{
 		mr:       mr,
 		repoPath: repoPath,
-		state:    CheckoutFetching,
+		state:    CheckoutInProgress,
 		spinner:  s,
-		steps: []stepStatus{
-			{name: "Fetching origin", done: false},
-			{name: "Checking out " + mr.Branch, done: false},
-			{name: "Pulling latest changes", done: false},
-		},
 	}
 }
 
@@ -84,29 +71,11 @@ func (m CheckoutModal) Update(msg tea.Msg) (CheckoutModal, tea.Cmd) {
 		if msg.Err != nil {
 			m.state = CheckoutError
 			m.err = msg.Err
-			// Mark failed step based on error
 			if ce, ok := msg.Err.(*git.CheckoutError); ok {
-				for i := range m.steps {
-					if i == 0 && ce.Step == "fetch" {
-						m.steps[i].failed = true
-						break
-					} else if i == 1 && ce.Step == "checkout" {
-						m.steps[0].done = true
-						m.steps[i].failed = true
-						break
-					} else if i == 2 && ce.Step == "pull" {
-						m.steps[0].done = true
-						m.steps[1].done = true
-						m.steps[i].failed = true
-						break
-					}
-				}
+				m.errStep = ce.Step
 			}
 		} else {
 			m.state = CheckoutDone
-			for i := range m.steps {
-				m.steps[i].done = true
-			}
 		}
 		return m, nil
 	}
@@ -119,27 +88,19 @@ func (m CheckoutModal) View() string {
 	content := fmt.Sprintf("#%d %s\n", m.mr.Number, m.mr.Title)
 	content += fmt.Sprintf("Branch: %s\n\n", m.mr.Branch)
 
-	for _, step := range m.steps {
-		if step.failed {
-			content += ErrorStyle.Render("✗ "+step.name) + "\n"
-		} else if step.done {
-			content += SuccessStyle.Render("✓ "+step.name) + "\n"
-		} else if m.state != CheckoutDone && m.state != CheckoutError {
-			content += m.spinner.View() + " " + step.name + "...\n"
-			break // Only show spinner for current step
-		} else {
-			content += "  " + step.name + "\n"
+	switch m.state {
+	case CheckoutInProgress:
+		content += m.spinner.View() + " Checking out...\n"
+		content += "\n[esc] cancel"
+	case CheckoutDone:
+		content += SuccessStyle.Render("✓ Checkout complete") + "\n"
+		content += "\nPress any key to continue"
+	case CheckoutError:
+		if m.errStep != "" {
+			content += ErrorStyle.Render(fmt.Sprintf("✗ Failed at %s", m.errStep)) + "\n"
 		}
-	}
-
-	if m.err != nil {
 		content += "\n" + ErrorStyle.Render("Error: "+m.err.Error())
-	}
-
-	if m.state == CheckoutDone || m.state == CheckoutError {
 		content += "\n\nPress any key to continue"
-	} else {
-		content += "\n\n[esc] cancel"
 	}
 
 	return ModalStyle.Render(content)
