@@ -2,6 +2,7 @@ package platform
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"gitHelper/internal/cmd"
@@ -26,6 +27,19 @@ type ghPR struct {
 	URL         string `json:"url"`
 }
 
+// ghPRDetail represents the JSON structure from gh pr view
+type ghPRDetail struct {
+	Title     string `json:"title"`
+	Body      string `json:"body"`
+	Additions int    `json:"additions"`
+	Deletions int    `json:"deletions"`
+	Files     []struct {
+		Path      string `json:"path"`
+		Additions int    `json:"additions"`
+		Deletions int    `json:"deletions"`
+	} `json:"files"`
+}
+
 func parseGitHubMRs(data []byte) ([]MR, error) {
 	var prs []ghPR
 	if err := json.Unmarshal(data, &prs); err != nil {
@@ -43,6 +57,31 @@ func parseGitHubMRs(data []byte) ([]MR, error) {
 		}
 	}
 	return mrs, nil
+}
+
+func parseGitHubMRDetail(number int, data []byte) (MRDetail, error) {
+	var pr ghPRDetail
+	if err := json.Unmarshal(data, &pr); err != nil {
+		return MRDetail{}, err
+	}
+
+	files := make([]FileChange, len(pr.Files))
+	for i, f := range pr.Files {
+		files[i] = FileChange{
+			Path:      f.Path,
+			Additions: f.Additions,
+			Deletions: f.Deletions,
+		}
+	}
+
+	return MRDetail{
+		Number:    number,
+		Title:     pr.Title,
+		Body:      pr.Body,
+		Files:     files,
+		Additions: pr.Additions,
+		Deletions: pr.Deletions,
+	}, nil
 }
 
 // ListMRs returns pull requests for the given author
@@ -101,4 +140,16 @@ func (g *GitHub) ListAuthors() ([]Author, error) {
 		}
 	}
 	return authors, nil
+}
+
+// GetMRDetail returns detailed information about a pull request
+func (g *GitHub) GetMRDetail(number int) (MRDetail, error) {
+	out, err := cmd.Run(g.repoPath, "gh", "pr", "view",
+		fmt.Sprintf("%d", number),
+		"--json", "title,body,files,additions,deletions",
+	)
+	if err != nil {
+		return MRDetail{}, err
+	}
+	return parseGitHubMRDetail(number, out)
 }
