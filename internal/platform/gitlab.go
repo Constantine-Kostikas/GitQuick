@@ -107,10 +107,109 @@ func (g *GitLab) ListAuthors() ([]Author, error) {
 	return authors, nil
 }
 
+// glabMRDetail represents the JSON structure from glab mr view
+type glabMRDetail struct {
+	IID         int    `json:"iid"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+// glabDiffStats represents a file's diff statistics from GitLab API
+type glabDiffStats struct {
+	OldPath   string `json:"old_path"`
+	NewPath   string `json:"new_path"`
+	Additions int    `json:"additions"`
+	Deletions int    `json:"deletions"`
+}
+
+func parseGitLabMRDetail(data []byte) (glabMRDetail, error) {
+	var detail glabMRDetail
+	if err := json.Unmarshal(data, &detail); err != nil {
+		return glabMRDetail{}, err
+	}
+	return detail, nil
+}
+
+func parseGitLabDiffStats(data []byte) ([]FileChange, int, int, error) {
+	var stats []glabDiffStats
+	if err := json.Unmarshal(data, &stats); err != nil {
+		return nil, 0, 0, err
+	}
+
+	files := make([]FileChange, len(stats))
+	totalAdditions := 0
+	totalDeletions := 0
+
+	for i, s := range stats {
+		// Use new_path as the file path (handles renames)
+		path := s.NewPath
+		if path == "" {
+			path = s.OldPath
+		}
+		files[i] = FileChange{
+			Path:      path,
+			Additions: s.Additions,
+			Deletions: s.Deletions,
+		}
+		totalAdditions += s.Additions
+		totalDeletions += s.Deletions
+	}
+
+	return files, totalAdditions, totalDeletions, nil
+}
+
 // GetMRDetail returns detailed information about a merge request
 func (g *GitLab) GetMRDetail(number int) (MRDetail, error) {
-	// TODO: Implement GitLab MR detail fetching
-	return MRDetail{
-		Number: number,
-	}, nil
+	// Get basic MR info using glab mr view
+	mrOut, err := cmd.Run(g.repoPath, "glab", "mr", "view", fmt.Sprintf("%d", number), "-F", "json")
+	if err != nil {
+		return MRDetail{}, err
+	}
+
+	detail, err := parseGitLabMRDetail(mrOut)
+	if err != nil {
+		return MRDetail{}, err
+	}
+
+	result := MRDetail{
+		Number: detail.IID,
+		Title:  detail.Title,
+		Body:   detail.Description,
+	}
+
+	// Get diff stats using GitLab API
+	// The endpoint /projects/:id/merge_requests/:iid/changes returns file-level changes
+	diffOut, err := cmd.Run(g.repoPath, "glab", "api", fmt.Sprintf("projects/:id/merge_requests/%d/changes", number))
+	if err != nil {
+		// If we can't get diff stats, return what we have
+		return result, nil
+	}
+
+	// The changes endpoint returns the MR with a "changes" array
+	var changesResponse struct {
+		Changes []glabDiffStats `json:"changes"`
+	}
+	if err := json.Unmarshal(diffOut, &changesResponse); err != nil {
+		// If parsing fails, return what we have
+		return result, nil
+	}
+
+	// Convert changes to FileChange slice and compute totals
+	files := make([]FileChange, len(changesResponse.Changes))
+	for i, c := range changesResponse.Changes {
+		path := c.NewPath
+		if path == "" {
+			path = c.OldPath
+		}
+		files[i] = FileChange{
+			Path:      path,
+			Additions: c.Additions,
+			Deletions: c.Deletions,
+		}
+		result.Additions += c.Additions
+		result.Deletions += c.Deletions
+	}
+	result.Files = files
+
+	return result, nil
 }
