@@ -14,6 +14,10 @@ func DetectPlatformFromURL(url string) string {
 	if strings.Contains(urlLower, "gitlab.com") {
 		return "gitlab"
 	}
+	if strings.Contains(urlLower, "generation-y") {
+		return "gitlab"
+	}
+	
 	return ""
 }
 
