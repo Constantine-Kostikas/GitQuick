@@ -30,6 +30,7 @@ type Dashboard struct {
 	authorPicker  *AuthorPicker
 	activeTab     Tab
 	mrList        MRList
+	mrDetail      *MRDetailModal
 	checkout      *CheckoutModal
 	width         int
 	height        int
@@ -111,6 +112,13 @@ func (d Dashboard) loadBranch() tea.Cmd {
 	}
 }
 
+func (d Dashboard) loadMRDetail(number int) tea.Cmd {
+	return func() tea.Msg {
+		detail, err := d.platform.GetMRDetail(number)
+		return MRDetailLoadedMsg{Detail: detail, Err: err}
+	}
+}
+
 // Update handles messages
 func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// If checkout modal is active, delegate to it
@@ -128,6 +136,34 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		newCheckout, cmd := d.checkout.Update(msg)
 		d.checkout = &newCheckout
+		return d, cmd
+	}
+
+	// If MR detail modal is active, delegate to it
+	if d.mrDetail != nil {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "esc" {
+				d.mrDetail = nil
+				return d, nil
+			}
+		case MRDetailLoadedMsg:
+			d.mrDetail.SetDetail(msg.Detail, msg.Err)
+			return d, nil
+		}
+
+		newDetail, cmd := d.mrDetail.Update(msg)
+		d.mrDetail = &newDetail
+
+		// Check if user wants to proceed to checkout
+		if d.mrDetail.WantsCheckout() {
+			mr := d.mrDetail.GetMR()
+			d.mrDetail = nil
+			checkout := NewCheckoutModal(mr, d.repoPath)
+			d.checkout = &checkout
+			return d, d.checkout.Init()
+		}
+
 		return d, cmd
 	}
 
@@ -178,9 +214,10 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if d.activeTab == TabMRs {
 				if mr := d.mrList.SelectedMR(); mr != nil {
-					checkout := NewCheckoutModal(*mr, d.repoPath)
-					d.checkout = &checkout
-					return d, d.checkout.Init()
+					// Open MR detail modal first (checkout happens from there)
+					detail := NewMRDetailModal(*mr, d.width, d.height)
+					d.mrDetail = &detail
+					return d, tea.Batch(d.mrDetail.Init(), d.loadMRDetail(mr.Number))
 				}
 			}
 			return d, nil
@@ -291,6 +328,17 @@ func (d Dashboard) View() string {
 		)
 	}
 
+	// Overlay MR detail modal if active
+	if d.mrDetail != nil {
+		modalView := d.mrDetail.View()
+		view = lipgloss.Place(d.width, d.height,
+			lipgloss.Center, lipgloss.Center,
+			modalView,
+			lipgloss.WithWhitespaceChars(" "),
+			lipgloss.WithWhitespaceForeground(lipgloss.Color("236")),
+		)
+	}
+
 	// Overlay author picker if active
 	if d.authorPicker != nil {
 		modalView := d.authorPicker.View()
@@ -354,6 +402,6 @@ func (d Dashboard) renderTabs() string {
 }
 
 func (d Dashboard) renderFooter() string {
-	help := "↑↓ nav │ enter checkout │ r refresh │ a author │ tab switch │ q quit"
+	help := "↑↓ nav │ enter details │ r refresh │ a author │ tab switch │ q quit"
 	return FooterStyle.Align(lipgloss.Center).Width(d.width).Render(help)
 }
