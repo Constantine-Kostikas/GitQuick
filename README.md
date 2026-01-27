@@ -1,6 +1,5 @@
 **Note:** This project was vibe coded for learning purposes. It's a playground for exploring Go, TUI development with Bubbletea, and CLI tool design. Contributions and feedback welcome, but don't expect enterprise-grade stability.
----
-
+ 
 
 # gitQuick (gq)
 
@@ -34,8 +33,18 @@ go install github.com/Constantine-Kostikas/gitQuick@latest
 ### Requirements
 
 - `git` - for repository operations
-- `gh` - GitHub CLI (for GitHub repos) - authenticate with `gh auth login`
-- `glab` - GitLab CLI (for GitLab repos) - authenticate with `glab auth login`
+- `gh` - GitHub CLI (for GitHub repos)
+- `glab` - GitLab CLI (for GitLab repos)
+
+**Important:** gitQuick is a wrapper around these CLIs and does not handle authentication. You must authenticate with the respective CLI before using gitQuick:
+
+```bash
+# For GitHub repositories
+gh auth login
+
+# For GitLab repositories
+glab auth login
+```
 
 ## Usage
 
