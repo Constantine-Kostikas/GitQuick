@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- MR detail modal showing title, body, and file changes with additions/deletions
+- Two-step checkout flow: Enter shows details, Enter again to checkout
+- Scrollable file list in detail modal with per-file diff stats
 - Refresh MR list with `r` key
 - Author picker dropdown showing repository contributors when pressing `a`
 - Dev container configuration for GitHub Codespaces
