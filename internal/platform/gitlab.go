@@ -2,6 +2,7 @@ package platform
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"gitHelper/internal/cmd"
 )
@@ -104,4 +105,12 @@ func (g *GitLab) ListAuthors() ([]Author, error) {
 		}
 	}
 	return authors, nil
+}
+
+// GetMRDetail returns detailed information about a merge request
+func (g *GitLab) GetMRDetail(number int) (MRDetail, error) {
+	// TODO: Implement GitLab MR detail fetching
+	return MRDetail{
+		Number: number,
+	}, nil
 }
