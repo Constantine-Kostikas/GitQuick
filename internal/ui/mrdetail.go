@@ -164,8 +164,10 @@ func (m MRDetailModal) View() string {
 	}
 
 	// Summary section
-	summarySection := fmt.Sprintf("%d files changed  +%d -%d",
-		len(m.detail.Files), m.detail.Additions, m.detail.Deletions)
+	summarySection := fmt.Sprintf("%d files changed  %s %s",
+		len(m.detail.Files),
+		SuccessStyle.Render(fmt.Sprintf("+%d", m.detail.Additions)),
+		ErrorStyle.Render(fmt.Sprintf("-%d", m.detail.Deletions)))
 	sections = append(sections, summarySection)
 
 	// Footer section with keybinds
@@ -209,8 +211,8 @@ func (m MRDetailModal) renderFileList(contentWidth int) string {
 		file := m.detail.Files[i]
 
 		// Format: +12  -3   src/auth/login.go
-		addStr := fmt.Sprintf("+%d", file.Additions)
-		delStr := fmt.Sprintf("-%d", file.Deletions)
+		addStr := SuccessStyle.Render(fmt.Sprintf("+%-4d", file.Additions))
+		delStr := ErrorStyle.Render(fmt.Sprintf("-%-4d", file.Deletions))
 
 		// Truncate path if needed
 		maxPathLen := contentWidth - 20
@@ -219,7 +221,7 @@ func (m MRDetailModal) renderFileList(contentWidth int) string {
 		}
 		path := truncateString(file.Path, maxPathLen)
 
-		line := fmt.Sprintf("%-5s %-5s %s", addStr, delStr, path)
+		line := fmt.Sprintf("%s %s %s", addStr, delStr, path)
 
 		if i == m.cursor {
 			// Highlight the selected line
