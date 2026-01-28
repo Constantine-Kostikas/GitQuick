@@ -21,7 +21,8 @@ const (
 
 // CheckoutModal handles the checkout flow UI
 type CheckoutModal struct {
-	mr       platform.MR
+	mr       *platform.MR // nil for direct branch checkout
+	branch   string       // branch to checkout
 	repoPath string
 	state    CheckoutState
 	spinner  spinner.Model
@@ -34,13 +35,28 @@ type CheckoutCompleteMsg struct {
 	Err error
 }
 
-// NewCheckoutModal creates a new checkout modal
+// NewCheckoutModal creates a new checkout modal for an MR
 func NewCheckoutModal(mr platform.MR, repoPath string) CheckoutModal {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 
 	return CheckoutModal{
-		mr:       mr,
+		mr:       &mr,
+		branch:   mr.Branch,
+		repoPath: repoPath,
+		state:    CheckoutInProgress,
+		spinner:  s,
+	}
+}
+
+// NewBranchCheckoutModal creates a checkout modal for a direct branch checkout
+func NewBranchCheckoutModal(branch, repoPath string) CheckoutModal {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+
+	return CheckoutModal{
+		mr:       nil,
+		branch:   branch,
 		repoPath: repoPath,
 		state:    CheckoutInProgress,
 		spinner:  s,
@@ -54,7 +70,7 @@ func (m CheckoutModal) Init() tea.Cmd {
 
 func (m CheckoutModal) doCheckout() tea.Cmd {
 	return func() tea.Msg {
-		err := git.Checkout(m.repoPath, m.mr.Branch)
+		err := git.Checkout(m.repoPath, m.branch)
 		return CheckoutCompleteMsg{Err: err}
 	}
 }
@@ -85,8 +101,14 @@ func (m CheckoutModal) Update(msg tea.Msg) (CheckoutModal, tea.Cmd) {
 
 // View renders the modal
 func (m CheckoutModal) View() string {
-	content := fmt.Sprintf("#%d %s\n", m.mr.Number, m.mr.Title)
-	content += fmt.Sprintf("Branch: %s\n\n", m.mr.Branch)
+	var content string
+	if m.mr != nil {
+		content = fmt.Sprintf("#%d %s\n", m.mr.Number, m.mr.Title)
+		content += fmt.Sprintf("Branch: %s\n\n", m.branch)
+	} else {
+		content = fmt.Sprintf("Checkout to default branch\n")
+		content += fmt.Sprintf("Branch: %s\n\n", m.branch)
+	}
 
 	switch m.state {
 	case CheckoutInProgress:

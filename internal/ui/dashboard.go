@@ -211,6 +211,14 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return d, d.loadMRs()
 			}
 			return d, nil
+		case "m":
+			// Checkout to default branch
+			if d.repoInfo.DefaultBranch != "" && d.currentBranch != d.repoInfo.DefaultBranch {
+				checkout := NewBranchCheckoutModal(d.repoInfo.DefaultBranch, d.repoPath)
+				d.checkout = &checkout
+				return d, d.checkout.Init()
+			}
+			return d, nil
 		case "enter":
 			if d.activeTab == TabMRs {
 				if mr := d.mrList.SelectedMR(); mr != nil {
@@ -402,6 +410,6 @@ func (d Dashboard) renderTabs() string {
 }
 
 func (d Dashboard) renderFooter() string {
-	help := "↑↓ nav │ enter details │ r refresh │ a author │ tab switch │ q quit"
+	help := "↑↓ nav │ enter details │ r refresh │ a author │ m main │ tab switch │ q quit"
 	return FooterStyle.Align(lipgloss.Center).Width(d.width).Render(help)
 }
