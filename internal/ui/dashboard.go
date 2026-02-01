@@ -255,6 +255,18 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return d, cmd
 	}
 
+	// If MR list is in search mode, pass all keys to it (except ctrl+c)
+	if d.activeTab == TabMRs && d.mrList.IsSearching() {
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			if keyMsg.String() == "ctrl+c" {
+				return d, tea.Quit
+			}
+			var cmd tea.Cmd
+			d.mrList, cmd = d.mrList.Update(msg)
+			return d, cmd
+		}
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		d.width = msg.Width
@@ -386,8 +398,17 @@ func (d Dashboard) View() string {
 	// Footer
 	footer := d.renderFooter()
 
+	// Search bar (only shown when searching)
+	searchBar := ""
+	if d.activeTab == TabMRs && d.mrList.IsSearching() {
+		searchBar = "  " + d.mrList.SearchBar()
+	}
+
 	// Calculate content height
 	chromeHeight := lipgloss.Height(header) + lipgloss.Height(authorRow) + lipgloss.Height(tabs) + lipgloss.Height(footer)
+	if searchBar != "" {
+		chromeHeight += 1
+	}
 	contentHeight := d.height - chromeHeight
 
 	// Content
@@ -413,13 +434,25 @@ func (d Dashboard) View() string {
 		Render(rawContent)
 
 	// Combine
-	view := lipgloss.JoinVertical(lipgloss.Left,
-		header,
-		authorRow,
-		tabs,
-		content,
-		footer,
-	)
+	var view string
+	if searchBar != "" {
+		view = lipgloss.JoinVertical(lipgloss.Left,
+			header,
+			authorRow,
+			tabs,
+			content,
+			searchBar,
+			footer,
+		)
+	} else {
+		view = lipgloss.JoinVertical(lipgloss.Left,
+			header,
+			authorRow,
+			tabs,
+			content,
+			footer,
+		)
+	}
 
 	// Overlay checkout modal if active
 	if d.checkout != nil {
@@ -518,7 +551,7 @@ func (d Dashboard) renderTabs() string {
 }
 
 func (d Dashboard) renderFooter() string {
-	help := "↑↓ nav │ enter details │ w open │ r refresh │ a author │ m main │ tab switch │ q quit"
+	help := "↑↓ nav │ enter details │ w open │ f find │ r refresh │ a author │ m main │ q quit"
 	return FooterStyle.Align(lipgloss.Center).Width(d.width).Render(help)
 }
 
