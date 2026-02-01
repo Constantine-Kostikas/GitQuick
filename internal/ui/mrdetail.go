@@ -27,6 +27,7 @@ type MRDetailModal struct {
 	spinner       spinner.Model
 	cursor        int  // cursor position in file list
 	wantsCheckout bool // signals dashboard to start checkout
+	descViewer    *DescriptionViewer
 	width         int
 	height        int
 }
@@ -64,6 +65,20 @@ func (m *MRDetailModal) SetDetail(detail platform.MRDetail, err error) {
 
 // Update handles messages
 func (m MRDetailModal) Update(msg tea.Msg) (MRDetailModal, tea.Cmd) {
+	// If description viewer is active, delegate to it
+	if m.descViewer != nil {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "esc" {
+				m.descViewer = nil
+				return m, nil
+			}
+		}
+		newViewer, cmd := m.descViewer.Update(msg)
+		m.descViewer = &newViewer
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case spinner.TickMsg:
 		if m.loading {
@@ -102,6 +117,16 @@ func (m MRDetailModal) Update(msg tea.Msg) (MRDetailModal, tea.Cmd) {
 			}
 		case "enter":
 			m.wantsCheckout = true
+		case "d", "D":
+			if m.detail.Body != "" {
+				viewer := NewDescriptionViewer(
+					fmt.Sprintf("#%d Description", m.mr.Number),
+					m.detail.Body,
+					m.width,
+					m.height,
+				)
+				m.descViewer = &viewer
+			}
 		}
 	}
 
@@ -110,6 +135,11 @@ func (m MRDetailModal) Update(msg tea.Msg) (MRDetailModal, tea.Cmd) {
 
 // View renders the modal
 func (m MRDetailModal) View() string {
+	// If description viewer is active, show it
+	if m.descViewer != nil {
+		return m.descViewer.View()
+	}
+
 	// Calculate modal width - use available width with some margin
 	modalWidth := m.width - 10
 	if modalWidth < 50 {
@@ -178,7 +208,7 @@ func (m MRDetailModal) View() string {
 	sections = append(sections, summarySection)
 
 	// Footer section with keybinds
-	footerSection := DimStyle.Render("[j/k] scroll | [enter] checkout | [esc] close")
+	footerSection := DimStyle.Render("[j/k] scroll | [d] description | [enter] checkout | [esc] close")
 	sections = append(sections, footerSection)
 
 	// Join sections with dividers
