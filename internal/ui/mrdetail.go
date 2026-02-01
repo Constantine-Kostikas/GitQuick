@@ -21,6 +21,7 @@ type MRDetailLoadedMsg struct {
 type MRDetailModal struct {
 	mr            platform.MR
 	detail        platform.MRDetail
+	platformName  string // "github" or "gitlab"
 	loading       bool
 	err           error
 	spinner       spinner.Model
@@ -31,17 +32,18 @@ type MRDetailModal struct {
 }
 
 // NewMRDetailModal creates a new MR detail modal
-func NewMRDetailModal(mr platform.MR, width, height int) MRDetailModal {
+func NewMRDetailModal(mr platform.MR, platformName string, width, height int) MRDetailModal {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 
 	return MRDetailModal{
-		mr:      mr,
-		loading: true,
-		spinner: s,
-		cursor:  0,
-		width:   width,
-		height:  height,
+		mr:           mr,
+		platformName: platformName,
+		loading:      true,
+		spinner:      s,
+		cursor:       0,
+		width:        width,
+		height:       height,
 	}
 }
 
@@ -164,10 +166,15 @@ func (m MRDetailModal) View() string {
 	}
 
 	// Summary section
-	summarySection := fmt.Sprintf("%d files changed  %s %s",
-		len(m.detail.Files),
-		SuccessStyle.Render(fmt.Sprintf("+%d", m.detail.Additions)),
-		ErrorStyle.Render(fmt.Sprintf("-%d", m.detail.Deletions)))
+	var summarySection string
+	if m.platformName == "gitlab" {
+		summarySection = fmt.Sprintf("%d files changed", len(m.detail.Files))
+	} else {
+		summarySection = fmt.Sprintf("%d files changed  %s %s",
+			len(m.detail.Files),
+			SuccessStyle.Render(fmt.Sprintf("+%d", m.detail.Additions)),
+			ErrorStyle.Render(fmt.Sprintf("-%d", m.detail.Deletions)))
+	}
 	sections = append(sections, summarySection)
 
 	// Footer section with keybinds
@@ -210,18 +217,29 @@ func (m MRDetailModal) renderFileList(contentWidth int) string {
 	for i := startIdx; i < endIdx; i++ {
 		file := m.detail.Files[i]
 
-		// Format: +12  -3   src/auth/login.go
-		addStr := SuccessStyle.Render(fmt.Sprintf("+%-4d", file.Additions))
-		delStr := ErrorStyle.Render(fmt.Sprintf("-%-4d", file.Deletions))
+		var line string
+		if m.platformName == "gitlab" {
+			// GitLab: just show the file path (no line counts available)
+			maxPathLen := contentWidth - 8
+			if maxPathLen < 20 {
+				maxPathLen = 20
+			}
+			path := truncateString(file.Path, maxPathLen)
+			line = path
+		} else {
+			// GitHub: Format: +12  -3   src/auth/login.go
+			addStr := SuccessStyle.Render(fmt.Sprintf("+%-4d", file.Additions))
+			delStr := ErrorStyle.Render(fmt.Sprintf("-%-4d", file.Deletions))
 
-		// Truncate path if needed
-		maxPathLen := contentWidth - 20
-		if maxPathLen < 20 {
-			maxPathLen = 20
+			// Truncate path if needed
+			maxPathLen := contentWidth - 20
+			if maxPathLen < 20 {
+				maxPathLen = 20
+			}
+			path := truncateString(file.Path, maxPathLen)
+
+			line = fmt.Sprintf("%s %s %s", addStr, delStr, path)
 		}
-		path := truncateString(file.Path, maxPathLen)
-
-		line := fmt.Sprintf("%s %s %s", addStr, delStr, path)
 
 		if i == m.cursor {
 			// Highlight the selected line
@@ -237,7 +255,7 @@ func (m MRDetailModal) renderFileList(contentWidth int) string {
 	// Add scroll indicators if needed
 	var result strings.Builder
 	if startIdx > 0 {
-		result.WriteString(DimStyle.Render("  ... more above ...\n"))
+		result.WriteString(DimStyle.Render("  ... more above ...") + "\n")
 	}
 	result.WriteString(strings.Join(lines, "\n"))
 	if endIdx < len(m.detail.Files) {

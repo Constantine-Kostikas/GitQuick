@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os/exec"
+	"runtime"
 
 	"gitHelper/internal/git"
 	"gitHelper/internal/platform"
@@ -223,9 +225,16 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if d.activeTab == TabMRs {
 				if mr := d.mrList.SelectedMR(); mr != nil {
 					// Open MR detail modal first (checkout happens from there)
-					detail := NewMRDetailModal(*mr, d.width, d.height)
+					detail := NewMRDetailModal(*mr, d.repoInfo.Platform, d.width, d.height)
 					d.mrDetail = &detail
 					return d, tea.Batch(d.mrDetail.Init(), d.loadMRDetail(mr.Number))
+				}
+			}
+			return d, nil
+		case "w":
+			if d.activeTab == TabMRs {
+				if mr := d.mrList.SelectedMR(); mr != nil && mr.URL != "" {
+					openBrowser(mr.URL)
 				}
 			}
 			return d, nil
@@ -410,6 +419,20 @@ func (d Dashboard) renderTabs() string {
 }
 
 func (d Dashboard) renderFooter() string {
-	help := "↑↓ nav │ enter details │ r refresh │ a author │ m main │ tab switch │ q quit"
+	help := "↑↓ nav │ enter details │ w open │ r refresh │ a author │ m main │ tab switch │ q quit"
 	return FooterStyle.Align(lipgloss.Center).Width(d.width).Render(help)
+}
+
+// openBrowser opens a URL in the default browser
+func openBrowser(url string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", url)
+	default: // linux, freebsd, etc.
+		cmd = exec.Command("xdg-open", url)
+	}
+	_ = cmd.Start()
 }
