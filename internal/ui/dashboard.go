@@ -21,23 +21,31 @@ const (
 	TabBranches
 )
 
+// PendingCheckout holds info about a checkout waiting for dirty confirmation
+type PendingCheckout struct {
+	MR     *platform.MR // nil for direct branch checkout
+	Branch string
+}
+
 // Dashboard is the main UI component
 type Dashboard struct {
-	platform      platform.Platform
-	repoInfo      platform.RepoInfo
-	repoPath      string
-	currentBranch string
-	author        string
-	authors       []platform.Author
-	authorPicker  *AuthorPicker
-	activeTab     Tab
-	mrList        MRList
-	mrDetail      *MRDetailModal
-	checkout      *CheckoutModal
-	width         int
-	height        int
-	err           error
-	loading       bool
+	platform        platform.Platform
+	repoInfo        platform.RepoInfo
+	repoPath        string
+	currentBranch   string
+	author          string
+	authors         []platform.Author
+	authorPicker    *AuthorPicker
+	activeTab       Tab
+	mrList          MRList
+	mrDetail        *MRDetailModal
+	checkout        *CheckoutModal
+	dirtyConfirm    *DirtyConfirmModal
+	pendingCheckout *PendingCheckout
+	width           int
+	height          int
+	err             error
+	loading         bool
 }
 
 // MRsLoadedMsg is sent when MRs are loaded
@@ -62,6 +70,12 @@ type AuthorsLoadedMsg struct {
 type BranchLoadedMsg struct {
 	Branch string
 	Err    error
+}
+
+// DirtyCheckMsg is sent when dirty check completes
+type DirtyCheckMsg struct {
+	IsDirty bool
+	Err     error
 }
 
 // NewDashboard creates a new dashboard
@@ -121,8 +135,49 @@ func (d Dashboard) loadMRDetail(number int) tea.Cmd {
 	}
 }
 
+func (d Dashboard) checkDirty() tea.Cmd {
+	return func() tea.Msg {
+		isDirty, err := git.IsDirty(d.repoPath)
+		return DirtyCheckMsg{IsDirty: isDirty, Err: err}
+	}
+}
+
+func (d Dashboard) loadMRCommits(number int) tea.Cmd {
+	return func() tea.Msg {
+		commits, err := d.platform.GetMRCommits(number)
+		return MRCommitsLoadedMsg{Commits: commits, Err: err}
+	}
+}
+
 // Update handles messages
 func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// If dirty confirm modal is active, delegate to it
+	if d.dirtyConfirm != nil {
+		newConfirm, cmd := d.dirtyConfirm.Update(msg)
+		d.dirtyConfirm = &newConfirm
+
+		if d.dirtyConfirm.IsConfirmed() {
+			// User confirmed, proceed with checkout
+			d.dirtyConfirm = nil
+			if d.pendingCheckout != nil {
+				if d.pendingCheckout.MR != nil {
+					checkout := NewCheckoutModal(*d.pendingCheckout.MR, d.repoPath)
+					d.checkout = &checkout
+				} else {
+					checkout := NewBranchCheckoutModal(d.pendingCheckout.Branch, d.repoPath)
+					d.checkout = &checkout
+				}
+				d.pendingCheckout = nil
+				return d, d.checkout.Init()
+			}
+		} else if d.dirtyConfirm.IsCancelled() {
+			// User cancelled
+			d.dirtyConfirm = nil
+			d.pendingCheckout = nil
+		}
+		return d, cmd
+	}
+
 	// If checkout modal is active, delegate to it
 	if d.checkout != nil {
 		switch msg := msg.(type) {
@@ -152,6 +207,11 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case MRDetailLoadedMsg:
 			d.mrDetail.SetDetail(msg.Detail, msg.Err)
 			return d, nil
+		case MRCommitsLoadedMsg:
+			// Pass commits loaded message to the detail modal
+			newDetail, cmd := d.mrDetail.Update(msg)
+			d.mrDetail = &newDetail
+			return d, cmd
 		}
 
 		newDetail, cmd := d.mrDetail.Update(msg)
@@ -161,9 +221,15 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if d.mrDetail.WantsCheckout() {
 			mr := d.mrDetail.GetMR()
 			d.mrDetail = nil
-			checkout := NewCheckoutModal(mr, d.repoPath)
-			d.checkout = &checkout
-			return d, d.checkout.Init()
+			// Store pending checkout and check dirty state
+			d.pendingCheckout = &PendingCheckout{MR: &mr, Branch: mr.Branch}
+			return d, d.checkDirty()
+		}
+
+		// Check if user wants to view commits
+		if d.mrDetail.WantsCommits() {
+			mr := d.mrDetail.GetMR()
+			return d, d.loadMRCommits(mr.Number)
 		}
 
 		return d, cmd
@@ -187,6 +253,18 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		newPicker, cmd := d.authorPicker.Update(msg)
 		d.authorPicker = &newPicker
 		return d, cmd
+	}
+
+	// If MR list is in search mode, pass all keys to it (except ctrl+c)
+	if d.activeTab == TabMRs && d.mrList.IsSearching() {
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			if keyMsg.String() == "ctrl+c" {
+				return d, tea.Quit
+			}
+			var cmd tea.Cmd
+			d.mrList, cmd = d.mrList.Update(msg)
+			return d, cmd
+		}
 	}
 
 	switch msg := msg.(type) {
@@ -216,9 +294,9 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "m":
 			// Checkout to default branch
 			if d.repoInfo.DefaultBranch != "" && d.currentBranch != d.repoInfo.DefaultBranch {
-				checkout := NewBranchCheckoutModal(d.repoInfo.DefaultBranch, d.repoPath)
-				d.checkout = &checkout
-				return d, d.checkout.Init()
+				// Store pending checkout and check dirty state
+				d.pendingCheckout = &PendingCheckout{MR: nil, Branch: d.repoInfo.DefaultBranch}
+				return d, d.checkDirty()
 			}
 			return d, nil
 		case "enter":
@@ -268,6 +346,28 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			d.currentBranch = msg.Branch
 		}
 		return d, nil
+
+	case DirtyCheckMsg:
+		if d.pendingCheckout == nil {
+			return d, nil
+		}
+		// If error checking dirty, proceed anyway
+		if msg.Err != nil || !msg.IsDirty {
+			// Not dirty or error, proceed to checkout
+			if d.pendingCheckout.MR != nil {
+				checkout := NewCheckoutModal(*d.pendingCheckout.MR, d.repoPath)
+				d.checkout = &checkout
+			} else {
+				checkout := NewBranchCheckoutModal(d.pendingCheckout.Branch, d.repoPath)
+				d.checkout = &checkout
+			}
+			d.pendingCheckout = nil
+			return d, d.checkout.Init()
+		}
+		// Dirty, show confirmation
+		confirm := NewDirtyConfirmModal(d.pendingCheckout.Branch)
+		d.dirtyConfirm = &confirm
+		return d, nil
 	}
 
 	// Pass to MR list
@@ -298,8 +398,17 @@ func (d Dashboard) View() string {
 	// Footer
 	footer := d.renderFooter()
 
+	// Search bar (only shown when searching)
+	searchBar := ""
+	if d.activeTab == TabMRs && d.mrList.IsSearching() {
+		searchBar = "  " + d.mrList.SearchBar()
+	}
+
 	// Calculate content height
 	chromeHeight := lipgloss.Height(header) + lipgloss.Height(authorRow) + lipgloss.Height(tabs) + lipgloss.Height(footer)
+	if searchBar != "" {
+		chromeHeight += 1
+	}
 	contentHeight := d.height - chromeHeight
 
 	// Content
@@ -325,13 +434,25 @@ func (d Dashboard) View() string {
 		Render(rawContent)
 
 	// Combine
-	view := lipgloss.JoinVertical(lipgloss.Left,
-		header,
-		authorRow,
-		tabs,
-		content,
-		footer,
-	)
+	var view string
+	if searchBar != "" {
+		view = lipgloss.JoinVertical(lipgloss.Left,
+			header,
+			authorRow,
+			tabs,
+			content,
+			searchBar,
+			footer,
+		)
+	} else {
+		view = lipgloss.JoinVertical(lipgloss.Left,
+			header,
+			authorRow,
+			tabs,
+			content,
+			footer,
+		)
+	}
 
 	// Overlay checkout modal if active
 	if d.checkout != nil {
@@ -359,6 +480,17 @@ func (d Dashboard) View() string {
 	// Overlay author picker if active
 	if d.authorPicker != nil {
 		modalView := d.authorPicker.View()
+		view = lipgloss.Place(d.width, d.height,
+			lipgloss.Center, lipgloss.Center,
+			modalView,
+			lipgloss.WithWhitespaceChars(" "),
+			lipgloss.WithWhitespaceForeground(lipgloss.Color("236")),
+		)
+	}
+
+	// Overlay dirty confirm if active
+	if d.dirtyConfirm != nil {
+		modalView := d.dirtyConfirm.View()
 		view = lipgloss.Place(d.width, d.height,
 			lipgloss.Center, lipgloss.Center,
 			modalView,
@@ -419,7 +551,7 @@ func (d Dashboard) renderTabs() string {
 }
 
 func (d Dashboard) renderFooter() string {
-	help := "↑↓ nav │ enter details │ w open │ r refresh │ a author │ m main │ tab switch │ q quit"
+	help := "↑↓ nav │ enter details │ w open │ f find │ r refresh │ a author │ m main │ q quit"
 	return FooterStyle.Align(lipgloss.Center).Width(d.width).Render(help)
 }
 

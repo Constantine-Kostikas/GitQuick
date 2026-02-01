@@ -144,9 +144,20 @@ func Checkout(path, branch string) error  // fetch → checkout → pull
 | `↑↓` / `j/k` | Navigate list |
 | `Enter` | Checkout selected MR branch |
 | `w` | Open selected MR in browser |
+| `f` / `/` | Search/filter MR list |
 | `a` | Open author picker modal |
 | `r` / `R` | Refresh MR list |
-| `Esc` | Cancel/close modal |
+| `m` | Checkout to default/main branch |
+| `Esc` | Cancel/close modal or search |
+
+### MR Detail View
+| Key | Action |
+|-----|--------|
+| `j/k` | Scroll file list |
+| `d` | View full description (scrollable) |
+| `c` | View commits (scrollable) |
+| `Enter` | Checkout branch |
+| `Esc` | Close modal |
 
 ## External CLI Commands
 

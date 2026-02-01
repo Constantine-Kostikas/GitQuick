@@ -17,6 +17,12 @@ type MRDetailLoadedMsg struct {
 	Err    error
 }
 
+// MRCommitsLoadedMsg is sent when MR commits are loaded
+type MRCommitsLoadedMsg struct {
+	Commits []platform.Commit
+	Err     error
+}
+
 // MRDetailModal displays detailed information about an MR/PR
 type MRDetailModal struct {
 	mr            platform.MR
@@ -27,6 +33,10 @@ type MRDetailModal struct {
 	spinner       spinner.Model
 	cursor        int  // cursor position in file list
 	wantsCheckout bool // signals dashboard to start checkout
+	wantsCommits  bool // signals dashboard to load commits
+	descViewer    *DescriptionViewer
+	commitsViewer *CommitsViewer
+	commits       []platform.Commit
 	width         int
 	height        int
 }
@@ -64,6 +74,34 @@ func (m *MRDetailModal) SetDetail(detail platform.MRDetail, err error) {
 
 // Update handles messages
 func (m MRDetailModal) Update(msg tea.Msg) (MRDetailModal, tea.Cmd) {
+	// If description viewer is active, delegate to it
+	if m.descViewer != nil {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "esc" {
+				m.descViewer = nil
+				return m, nil
+			}
+		}
+		newViewer, cmd := m.descViewer.Update(msg)
+		m.descViewer = &newViewer
+		return m, cmd
+	}
+
+	// If commits viewer is active, delegate to it
+	if m.commitsViewer != nil {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			if msg.String() == "esc" {
+				m.commitsViewer = nil
+				return m, nil
+			}
+		}
+		newViewer, cmd := m.commitsViewer.Update(msg)
+		m.commitsViewer = &newViewer
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case spinner.TickMsg:
 		if m.loading {
@@ -80,6 +118,21 @@ func (m MRDetailModal) Update(msg tea.Msg) (MRDetailModal, tea.Cmd) {
 		} else {
 			m.detail = msg.Detail
 		}
+		return m, nil
+
+	case MRCommitsLoadedMsg:
+		if msg.Err == nil {
+			m.commits = msg.Commits
+			// Open the commits viewer now that data is loaded
+			viewer := NewCommitsViewer(
+				fmt.Sprintf("#%d Commits (%d)", m.mr.Number, len(m.commits)),
+				m.commits,
+				m.width,
+				m.height,
+			)
+			m.commitsViewer = &viewer
+		}
+		m.wantsCommits = false
 		return m, nil
 
 	case tea.KeyMsg:
@@ -102,6 +155,30 @@ func (m MRDetailModal) Update(msg tea.Msg) (MRDetailModal, tea.Cmd) {
 			}
 		case "enter":
 			m.wantsCheckout = true
+		case "d", "D":
+			if m.detail.Body != "" {
+				viewer := NewDescriptionViewer(
+					fmt.Sprintf("#%d Description", m.mr.Number),
+					m.detail.Body,
+					m.width,
+					m.height,
+				)
+				m.descViewer = &viewer
+			}
+		case "c", "C":
+			// If commits already loaded, show viewer directly
+			if len(m.commits) > 0 {
+				viewer := NewCommitsViewer(
+					fmt.Sprintf("#%d Commits (%d)", m.mr.Number, len(m.commits)),
+					m.commits,
+					m.width,
+					m.height,
+				)
+				m.commitsViewer = &viewer
+			} else {
+				// Signal to load commits
+				m.wantsCommits = true
+			}
 		}
 	}
 
@@ -110,6 +187,16 @@ func (m MRDetailModal) Update(msg tea.Msg) (MRDetailModal, tea.Cmd) {
 
 // View renders the modal
 func (m MRDetailModal) View() string {
+	// If description viewer is active, show it
+	if m.descViewer != nil {
+		return m.descViewer.View()
+	}
+
+	// If commits viewer is active, show it
+	if m.commitsViewer != nil {
+		return m.commitsViewer.View()
+	}
+
 	// Calculate modal width - use available width with some margin
 	modalWidth := m.width - 10
 	if modalWidth < 50 {
@@ -178,7 +265,7 @@ func (m MRDetailModal) View() string {
 	sections = append(sections, summarySection)
 
 	// Footer section with keybinds
-	footerSection := DimStyle.Render("[j/k] scroll | [enter] checkout | [esc] close")
+	footerSection := DimStyle.Render("[j/k] scroll | [d] desc | [c] commits | [enter] checkout | [esc] close")
 	sections = append(sections, footerSection)
 
 	// Join sections with dividers
@@ -273,6 +360,11 @@ func (m MRDetailModal) IsLoading() bool {
 // WantsCheckout returns true if user pressed enter to checkout
 func (m MRDetailModal) WantsCheckout() bool {
 	return m.wantsCheckout
+}
+
+// WantsCommits returns true if user pressed c to view commits
+func (m MRDetailModal) WantsCommits() bool {
+	return m.wantsCommits
 }
 
 // GetMR returns the MR associated with this modal

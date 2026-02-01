@@ -50,6 +50,15 @@ func (e *CheckoutError) Unwrap() error {
 	return e.Err
 }
 
+// IsDirty checks if the working tree has uncommitted changes
+func IsDirty(path string) (bool, error) {
+	out, err := cmd.Run(path, "git", "status", "--porcelain")
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(string(out)) != "", nil
+}
+
 // Checkout fetches, checks out the branch, and pulls
 func Checkout(path, branch string) error {
 	// Fetch
