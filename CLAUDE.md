@@ -143,6 +143,7 @@ func Checkout(path, branch string) error  // fetch → checkout → pull
 | `Tab` | Switch between MRs/Issues/Branches tabs |
 | `↑↓` / `j/k` | Navigate list |
 | `Enter` | Checkout selected MR branch |
+| `w` | Open selected MR in browser |
 | `a` | Open author picker modal |
 | `r` / `R` | Refresh MR list |
 | `Esc` | Cancel/close modal |
