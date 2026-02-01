@@ -153,3 +153,55 @@ func (g *GitHub) GetMRDetail(number int) (MRDetail, error) {
 	}
 	return parseGitHubMRDetail(number, out)
 }
+
+// ghCommit represents the JSON structure for commits from gh pr view
+type ghCommit struct {
+	OID             string `json:"oid"`
+	MessageHeadline string `json:"messageHeadline"`
+	Authors         []struct {
+		Name string `json:"name"`
+	} `json:"authors"`
+	CommittedDate string `json:"committedDate"`
+}
+
+// GetMRCommits returns commits for a pull request
+func (g *GitHub) GetMRCommits(number int) ([]Commit, error) {
+	out, err := cmd.Run(g.repoPath, "gh", "pr", "view",
+		fmt.Sprintf("%d", number),
+		"--json", "commits",
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var result struct {
+		Commits []ghCommit `json:"commits"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil {
+		return nil, err
+	}
+
+	commits := make([]Commit, len(result.Commits))
+	for i, c := range result.Commits {
+		author := ""
+		if len(c.Authors) > 0 {
+			author = c.Authors[0].Name
+		}
+		commits[i] = Commit{
+			SHA:     c.OID[:7], // Short SHA
+			Message: c.MessageHeadline,
+			Author:  author,
+			Date:    formatDate(c.CommittedDate),
+		}
+	}
+	return commits, nil
+}
+
+// formatDate formats an ISO date string to a shorter format
+func formatDate(isoDate string) string {
+	// Input: "2024-01-15T10:30:00Z", Output: "2024-01-15"
+	if len(isoDate) >= 10 {
+		return isoDate[:10]
+	}
+	return isoDate
+}

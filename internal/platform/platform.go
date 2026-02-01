@@ -40,10 +40,19 @@ type MRDetail struct {
 	Deletions int // total deletions across all files
 }
 
+// Commit represents a commit in an MR/PR
+type Commit struct {
+	SHA     string
+	Message string
+	Author  string
+	Date    string
+}
+
 // Platform abstracts GitHub/GitLab operations
 type Platform interface {
 	ListMRs(author string) ([]MR, error)
 	GetRepoInfo() (RepoInfo, error)
 	ListAuthors() ([]Author, error)
 	GetMRDetail(number int) (MRDetail, error)
+	GetMRCommits(number int) ([]Commit, error)
 }

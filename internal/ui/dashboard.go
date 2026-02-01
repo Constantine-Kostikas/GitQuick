@@ -142,6 +142,13 @@ func (d Dashboard) checkDirty() tea.Cmd {
 	}
 }
 
+func (d Dashboard) loadMRCommits(number int) tea.Cmd {
+	return func() tea.Msg {
+		commits, err := d.platform.GetMRCommits(number)
+		return MRCommitsLoadedMsg{Commits: commits, Err: err}
+	}
+}
+
 // Update handles messages
 func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// If dirty confirm modal is active, delegate to it
@@ -200,6 +207,11 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case MRDetailLoadedMsg:
 			d.mrDetail.SetDetail(msg.Detail, msg.Err)
 			return d, nil
+		case MRCommitsLoadedMsg:
+			// Pass commits loaded message to the detail modal
+			newDetail, cmd := d.mrDetail.Update(msg)
+			d.mrDetail = &newDetail
+			return d, cmd
 		}
 
 		newDetail, cmd := d.mrDetail.Update(msg)
@@ -212,6 +224,12 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Store pending checkout and check dirty state
 			d.pendingCheckout = &PendingCheckout{MR: &mr, Branch: mr.Branch}
 			return d, d.checkDirty()
+		}
+
+		// Check if user wants to view commits
+		if d.mrDetail.WantsCommits() {
+			mr := d.mrDetail.GetMR()
+			return d, d.loadMRCommits(mr.Number)
 		}
 
 		return d, cmd

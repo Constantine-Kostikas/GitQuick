@@ -154,6 +154,7 @@ func Checkout(path, branch string) error  // fetch → checkout → pull
 |-----|--------|
 | `j/k` | Scroll file list |
 | `d` | View full description (scrollable) |
+| `c` | View commits (scrollable) |
 | `Enter` | Checkout branch |
 | `Esc` | Close modal |
 

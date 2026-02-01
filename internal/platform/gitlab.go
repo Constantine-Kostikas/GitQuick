@@ -158,6 +158,47 @@ func parseGitLabDiffStats(data []byte) ([]FileChange, int, int, error) {
 	return files, totalAdditions, totalDeletions, nil
 }
 
+// glabCommit represents the JSON structure for commits from GitLab API
+type glabCommit struct {
+	ShortID       string `json:"short_id"`
+	Title         string `json:"title"`
+	AuthorName    string `json:"author_name"`
+	CommittedDate string `json:"committed_date"`
+}
+
+// GetMRCommits returns commits for a merge request
+func (g *GitLab) GetMRCommits(number int) ([]Commit, error) {
+	out, err := cmd.Run(g.repoPath, "glab", "api", fmt.Sprintf("projects/:id/merge_requests/%d/commits", number))
+	if err != nil {
+		return nil, err
+	}
+
+	var glabCommits []glabCommit
+	if err := json.Unmarshal(out, &glabCommits); err != nil {
+		return nil, err
+	}
+
+	commits := make([]Commit, len(glabCommits))
+	for i, c := range glabCommits {
+		commits[i] = Commit{
+			SHA:     c.ShortID,
+			Message: c.Title,
+			Author:  c.AuthorName,
+			Date:    formatGitLabDate(c.CommittedDate),
+		}
+	}
+	return commits, nil
+}
+
+// formatGitLabDate formats a GitLab date string to a shorter format
+func formatGitLabDate(date string) string {
+	// Input: "2024-01-15T10:30:00.000+00:00", Output: "2024-01-15"
+	if len(date) >= 10 {
+		return date[:10]
+	}
+	return date
+}
+
 // GetMRDetail returns detailed information about a merge request
 func (g *GitLab) GetMRDetail(number int) (MRDetail, error) {
 	// Get basic MR info using glab mr view
