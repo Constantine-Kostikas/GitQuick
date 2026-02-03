@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gitHelper/internal/cmd"
+	"github.com/Constantine-Kostikas/GitQuick/internal/cmd"
 )
 
 // IsGitRepo checks if the given path is inside a git repository

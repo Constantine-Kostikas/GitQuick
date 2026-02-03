@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"gitHelper/internal/cmd"
+	"github.com/Constantine-Kostikas/GitQuick/internal/cmd"
 )
 
 // GitLab implements Platform for GitLab repositories

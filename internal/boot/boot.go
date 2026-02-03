@@ -2,8 +2,8 @@ package boot
 
 import (
 	"fmt"
-	"gitHelper/internal/git"
-	"gitHelper/internal/platform"
+	"github.com/Constantine-Kostikas/GitQuick/internal/git"
+	"github.com/Constantine-Kostikas/GitQuick/internal/platform"
 	"os"
 )
 

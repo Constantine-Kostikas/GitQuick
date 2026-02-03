@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"gitHelper/internal/platform"
+	"github.com/Constantine-Kostikas/GitQuick/internal/platform"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"

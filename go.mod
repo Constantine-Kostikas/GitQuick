@@ -1,4 +1,4 @@
-module gitHelper
+module github.com/Constantine-Kostikas/GitQuick
 
 go 1.25
 

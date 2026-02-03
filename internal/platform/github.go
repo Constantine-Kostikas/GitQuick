@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gitHelper/internal/cmd"
+	"github.com/Constantine-Kostikas/GitQuick/internal/cmd"
 )
 
 // GitHub implements Platform for GitHub repositories

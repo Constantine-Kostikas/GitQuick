@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"gitHelper/internal/boot"
-	"gitHelper/internal/ui"
+	"github.com/Constantine-Kostikas/GitQuick/internal/boot"
+	"github.com/Constantine-Kostikas/GitQuick/internal/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

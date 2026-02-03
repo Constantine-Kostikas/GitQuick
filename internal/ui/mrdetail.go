@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gitHelper/internal/platform"
+	"github.com/Constantine-Kostikas/GitQuick/internal/platform"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
