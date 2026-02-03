@@ -237,6 +237,18 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle author picker modal
 	if d.authorPicker != nil {
+		// If author picker is in search mode, pass all keys to it (except ctrl+c)
+		if d.authorPicker.IsSearching() {
+			if keyMsg, ok := msg.(tea.KeyMsg); ok {
+				if keyMsg.String() == "ctrl+c" {
+					return d, tea.Quit
+				}
+				newPicker, cmd := d.authorPicker.Update(msg)
+				d.authorPicker = &newPicker
+				return d, cmd
+			}
+		}
+
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch msg.String() {
