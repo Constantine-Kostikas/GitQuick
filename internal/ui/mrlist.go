@@ -61,27 +61,37 @@ func (d CompactDelegate) Render(w io.Writer, m list.Model, index int, item list.
 		status = StatusDraftStyle.Render("○")
 	}
 
-	// Format: [indicator] [status] #number title (branch)
+	// Calculate available width for title (account for borders, padding, status, number)
+	// Border: 2 chars, padding: 2 chars, status: 2 chars, number: ~6 chars, spacing: 2 chars
+	availableWidth := m.Width() - 14
+	if availableWidth < 20 {
+		availableWidth = 20
+	}
+
 	number := fmt.Sprintf("#%-4d", mr.Number)
 	title := mr.Title
-	if len(title) > 50 {
-		title = title[:47] + "..."
+	if len(title) > availableWidth {
+		title = title[:availableWidth-3] + "..."
 	}
 
-	var line string
+	// Branch on second line, indented to align with title
+	branchIndent := "       " // Align with title (after status + number)
+	branch := mr.Branch
+
+	var output string
 	if isSelected {
-		titleStyled := SelectedItemStyle.Render(fmt.Sprintf("%s %s", number, title))
-		branchStyled := SelectedItemStyle.Render(fmt.Sprintf("(%s)", mr.Branch))
-		content := fmt.Sprintf("%s %s %s", status, titleStyled, branchStyled)
-		line = SelectedRowStyle.Render(content)
+		titleLine := fmt.Sprintf("%s %s %s", status, SelectedItemStyle.Render(number), SelectedItemStyle.Render(title))
+		branchLine := branchIndent + BranchStyle.Render(branch)
+		content := titleLine + "\n" + branchLine
+		output = SelectedRowStyle.Render(content)
 	} else {
-		titleStyled := NormalItemStyle.Render(fmt.Sprintf("%s %s", number, title))
-		branchStyled := DimStyle.Render(fmt.Sprintf("(%s)", mr.Branch))
-		content := fmt.Sprintf("%s %s %s", status, titleStyled, branchStyled)
-		line = NormalRowStyle.Render(content)
+		titleLine := fmt.Sprintf("%s %s %s", status, NormalItemStyle.Render(number), NormalItemStyle.Render(title))
+		branchLine := branchIndent + BranchStyle.Render(branch)
+		content := titleLine + "\n" + branchLine
+		output = NormalRowStyle.Render(content)
 	}
 
-	_, _ = fmt.Fprint(w, line)
+	_, _ = fmt.Fprint(w, output)
 }
 
 // MRList is a bubbletea component for displaying MRs
