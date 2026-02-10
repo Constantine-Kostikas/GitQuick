@@ -56,6 +56,10 @@ var (
 	DimStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("244"))
 
+	// Branch style - grey for branch names on second line
+	BranchStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240"))
+
 	// Status styles
 	StatusOpenStyle = lipgloss.NewStyle().
 			Foreground(successColor)
