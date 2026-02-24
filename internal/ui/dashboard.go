@@ -8,8 +8,8 @@ import (
 	"github.com/Constantine-Kostikas/GitQuick/internal/git"
 	"github.com/Constantine-Kostikas/GitQuick/internal/platform"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // Tab represents a dashboard tab
@@ -181,7 +181,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// If checkout modal is active, delegate to it
 	if d.checkout != nil {
 		switch msg := msg.(type) {
-		case tea.KeyMsg:
+		case tea.KeyPressMsg:
 			if d.checkout.IsDone() {
 				d.checkout = nil
 				return d, d.loadBranch()
@@ -199,7 +199,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// If MR detail modal is active, delegate to it
 	if d.mrDetail != nil {
 		switch msg := msg.(type) {
-		case tea.KeyMsg:
+		case tea.KeyPressMsg:
 			if msg.String() == "esc" {
 				d.mrDetail = nil
 				return d, nil
@@ -239,7 +239,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if d.authorPicker != nil {
 		// If author picker is in search mode, pass all keys to it (except ctrl+c)
 		if d.authorPicker.IsSearching() {
-			if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 				if keyMsg.String() == "ctrl+c" {
 					return d, tea.Quit
 				}
@@ -250,7 +250,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch msg := msg.(type) {
-		case tea.KeyMsg:
+		case tea.KeyPressMsg:
 			switch msg.String() {
 			case "enter":
 				d.author = d.authorPicker.SelectedAuthor()
@@ -269,7 +269,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// If MR list is in search mode, pass all keys to it (except ctrl+c)
 	if d.activeTab == TabMRs && d.mrList.IsSearching() {
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 			if keyMsg.String() == "ctrl+c" {
 				return d, tea.Quit
 			}
@@ -286,7 +286,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		d.mrList.SetSize(msg.Width-4, msg.Height-10)
 		return d, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return d, tea.Quit
@@ -393,9 +393,11 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the dashboard
-func (d Dashboard) View() string {
+func (d Dashboard) View() tea.View {
 	if d.width == 0 {
-		return "Loading..."
+		v := tea.NewView("Loading...")
+		v.AltScreen = true
+		return v
 	}
 
 	// Header
@@ -474,7 +476,7 @@ func (d Dashboard) View() string {
 			lipgloss.Center, lipgloss.Center,
 			modalView,
 			lipgloss.WithWhitespaceChars(" "),
-			lipgloss.WithWhitespaceForeground(lipgloss.Color("236")),
+			lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("236"))),
 		)
 	}
 
@@ -485,7 +487,7 @@ func (d Dashboard) View() string {
 			lipgloss.Center, lipgloss.Center,
 			modalView,
 			lipgloss.WithWhitespaceChars(" "),
-			lipgloss.WithWhitespaceForeground(lipgloss.Color("236")),
+			lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("236"))),
 		)
 	}
 
@@ -496,7 +498,7 @@ func (d Dashboard) View() string {
 			lipgloss.Center, lipgloss.Center,
 			modalView,
 			lipgloss.WithWhitespaceChars(" "),
-			lipgloss.WithWhitespaceForeground(lipgloss.Color("236")),
+			lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("236"))),
 		)
 	}
 
@@ -507,11 +509,13 @@ func (d Dashboard) View() string {
 			lipgloss.Center, lipgloss.Center,
 			modalView,
 			lipgloss.WithWhitespaceChars(" "),
-			lipgloss.WithWhitespaceForeground(lipgloss.Color("236")),
+			lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("236"))),
 		)
 	}
 
-	return view
+	v := tea.NewView(view)
+	v.AltScreen = true
+	return v
 }
 
 func (d Dashboard) renderHeader() string {

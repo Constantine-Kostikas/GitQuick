@@ -6,9 +6,9 @@ import (
 
 	"github.com/Constantine-Kostikas/GitQuick/internal/platform"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // MRDetailLoadedMsg is sent when MR detail data is loaded
@@ -77,7 +77,7 @@ func (m MRDetailModal) Update(msg tea.Msg) (MRDetailModal, tea.Cmd) {
 	// If description viewer is active, delegate to it
 	if m.descViewer != nil {
 		switch msg := msg.(type) {
-		case tea.KeyMsg:
+		case tea.KeyPressMsg:
 			if msg.String() == "esc" {
 				m.descViewer = nil
 				return m, nil
@@ -91,7 +91,7 @@ func (m MRDetailModal) Update(msg tea.Msg) (MRDetailModal, tea.Cmd) {
 	// If commits viewer is active, delegate to it
 	if m.commitsViewer != nil {
 		switch msg := msg.(type) {
-		case tea.KeyMsg:
+		case tea.KeyPressMsg:
 			if msg.String() == "esc" {
 				m.commitsViewer = nil
 				return m, nil
@@ -135,7 +135,7 @@ func (m MRDetailModal) Update(msg tea.Msg) (MRDetailModal, tea.Cmd) {
 		m.wantsCommits = false
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.loading {
 			return m, nil
 		}

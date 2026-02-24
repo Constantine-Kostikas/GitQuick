@@ -6,9 +6,9 @@ import (
 
 	"github.com/Constantine-Kostikas/GitQuick/internal/platform"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // CommitsViewer displays a scrollable list of commits
@@ -41,7 +41,7 @@ func NewCommitsViewer(title string, commits []platform.Commit, width, height int
 	// Format commits for display
 	content := formatCommits(commits, contentWidth)
 
-	vp := viewport.New(contentWidth, modalHeight-4) // Leave room for title and footer
+	vp := viewport.New(viewport.WithWidth(contentWidth), viewport.WithHeight(modalHeight-4)) // Leave room for title and footer
 	vp.SetContent(content)
 	vp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
 
@@ -111,7 +111,7 @@ func (c CommitsViewer) View() string {
 
 	// Scroll indicator
 	scrollInfo := DimStyle.Render(strings.Repeat("─", c.width-6))
-	if c.viewport.TotalLineCount() > c.viewport.Height {
+	if c.viewport.TotalLineCount() > c.viewport.Height() {
 		scrollPercent := c.viewport.ScrollPercent() * 100
 		scrollInfo = DimStyle.Render(formatCommitsScrollPercent(scrollPercent, c.width-6))
 	}
