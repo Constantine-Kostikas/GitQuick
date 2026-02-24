@@ -24,11 +24,34 @@ gitQuick (`gq`) is a TUI utility that gives you quick access to Merge Requests a
 
 ```bash
 # Using go install
-go install github.com/Constantine-Kostikas/gitQuick@latest
+go install github.com/Constantine-Kostikas/GitQuick@latest
 
 # Or download from releases
 # https://github.com/Constantine-Kostikas/gitQuick/releases
 ```
+
+### macOS
+
+1. Download the correct archive for your Mac from the [releases page](https://github.com/Constantine-Kostikas/gitQuick/releases):
+   - Apple Silicon (M1/M2/M3): `GitQuick_Darwin_arm64.tar.gz`
+   - Intel: `GitQuick_Darwin_x86_64.tar.gz`
+
+2. Extract and move the binary to your PATH:
+
+```bash
+tar -xzf GitQuick_Darwin_arm64.tar.gz
+mv gq /usr/local/bin/gq
+```
+
+3. Remove the macOS quarantine attribute (one-time step — required because the binary is not Apple-notarized):
+
+```bash
+xattr -d com.apple.quarantine /usr/local/bin/gq
+```
+
+Without step 3, macOS Gatekeeper will block the binary or prompt you to allow it on every run.
+
+> **Note:** Steps 2 and 3 are not needed if you install via `go install`, since the binary is compiled locally on your machine.
 
 ### Requirements
 
