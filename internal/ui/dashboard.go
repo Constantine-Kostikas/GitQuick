@@ -200,7 +200,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if d.mrDetail != nil {
 		switch msg := msg.(type) {
 		case tea.KeyPressMsg:
-			if msg.String() == "esc" {
+			if msg.String() == "esc" && !d.mrDetail.HasSubViewer() {
 				d.mrDetail = nil
 				return d, nil
 			}
