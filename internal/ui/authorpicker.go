@@ -7,10 +7,10 @@ import (
 
 	"github.com/Constantine-Kostikas/GitQuick/internal/platform"
 
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // AuthorItem wraps an Author for the list component
@@ -111,9 +111,11 @@ func NewAuthorPicker(authors []platform.Author, currentAuthor string, width, hei
 	ti := textinput.New()
 	ti.Placeholder = "search..."
 	ti.CharLimit = 50
-	ti.Width = 30
-	ti.PromptStyle = lipgloss.NewStyle().Foreground(accentColor)
-	ti.TextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
+	ti.SetWidth(30)
+	tiStyles := ti.Styles()
+	tiStyles.Focused.Prompt = lipgloss.NewStyle().Foreground(accentColor)
+	tiStyles.Focused.Text = lipgloss.NewStyle().Foreground(lipgloss.Color("255"))
+	ti.SetStyles(tiStyles)
 
 	return AuthorPicker{
 		list:        l,
@@ -128,7 +130,7 @@ func (p AuthorPicker) Update(msg tea.Msg) (AuthorPicker, tea.Cmd) {
 	// Handle search mode
 	if p.searching {
 		switch msg := msg.(type) {
-		case tea.KeyMsg:
+		case tea.KeyPressMsg:
 			switch msg.String() {
 			case "esc":
 				p.searching = false
@@ -151,12 +153,12 @@ func (p AuthorPicker) Update(msg tea.Msg) (AuthorPicker, tea.Cmd) {
 
 	// Not in search mode
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "f", "/":
 			p.searching = true
 			p.searchInput.Focus()
-			return p, textinput.Blink
+			return p, nil
 		}
 	}
 
