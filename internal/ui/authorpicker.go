@@ -214,6 +214,8 @@ func (p AuthorPicker) View() string {
 	if p.searching {
 		content = content + "\n" + p.SearchBar()
 	}
+	footer := DimStyle.Render("↑↓ nav │ f find │ enter select │ esc close")
+	content = content + "\n" + footer
 	return ModalStyle.Width(p.listWidth).Render(content)
 }
 
