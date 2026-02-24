@@ -36,13 +36,13 @@ var (
 				Bold(true)
 
 	SelectedRowStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
+				BorderStyle(lipgloss.NormalBorder()).
+				BorderLeft(true).
 				BorderForeground(accentColor).
-				Padding(0, 1)
+				PaddingLeft(1)
 
 	NormalRowStyle = lipgloss.NewStyle().
-			Border(lipgloss.HiddenBorder()).
-			Padding(0, 1)
+			PaddingLeft(2)
 
 	NormalItemStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("250"))

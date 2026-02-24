@@ -372,6 +372,11 @@ func (m MRDetailModal) GetMR() platform.MR {
 	return m.mr
 }
 
+// HasSubViewer returns true if a sub-viewer (description or commits) is currently active
+func (m MRDetailModal) HasSubViewer() bool {
+	return m.descViewer != nil || m.commitsViewer != nil
+}
+
 // truncateString truncates a string to maxLen, adding ellipsis if needed
 func truncateString(s string, maxLen int) string {
 	if maxLen <= 3 {

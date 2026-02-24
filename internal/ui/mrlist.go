@@ -33,7 +33,7 @@ func (i MRItem) FilterValue() string {
 // CompactDelegate is a custom delegate for compact MR list rendering
 type CompactDelegate struct{}
 
-func (d CompactDelegate) Height() int                             { return 3 }
+func (d CompactDelegate) Height() int                             { return 2 }
 func (d CompactDelegate) Spacing() int                            { return 0 }
 func (d CompactDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
@@ -61,22 +61,28 @@ func (d CompactDelegate) Render(w io.Writer, m list.Model, index int, item list.
 		status = StatusDraftStyle.Render("○")
 	}
 
-	// Calculate available width for title (account for borders, padding, status, number)
-	// Border: 2 chars, padding: 2 chars, status: 2 chars, number: ~6 chars, spacing: 2 chars
-	availableWidth := m.Width() - 14
+	// Calculate available width for title (left border=1, padding=1, status=2, number=6, spacing=1)
+	availableWidth := m.Width() - 11
 	if availableWidth < 20 {
 		availableWidth = 20
 	}
 
-	number := fmt.Sprintf("#%-4d", mr.Number)
+	number := fmt.Sprintf("#%d", mr.Number)
 	title := mr.Title
 	if len(title) > availableWidth {
 		title = title[:availableWidth-3] + "..."
 	}
 
-	// Branch on second line, indented to align with title
-	branchIndent := "       " // Align with title (after status + number)
+	// Branch on second line, indented under the title
+	branchIndent := "  "
+	branchAvail := m.Width() - 11 - len(branchIndent)
+	if branchAvail < 10 {
+		branchAvail = 10
+	}
 	branch := mr.Branch
+	if len(branch) > branchAvail {
+		branch = branch[:branchAvail-3] + "..."
+	}
 
 	var output string
 	if isSelected {
