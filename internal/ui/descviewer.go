@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // DescriptionViewer displays a scrollable full description
@@ -39,7 +39,7 @@ func NewDescriptionViewer(title, content string, width, height int) DescriptionV
 	// Wrap the content to fit the width
 	wrappedContent := wrapText(content, contentWidth)
 
-	vp := viewport.New(contentWidth, modalHeight-4) // Leave room for title and footer
+	vp := viewport.New(viewport.WithWidth(contentWidth), viewport.WithHeight(modalHeight-4)) // Leave room for title and footer
 	vp.SetContent(wrappedContent)
 	vp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
 
@@ -77,7 +77,7 @@ func (d DescriptionViewer) View() string {
 		lipgloss.NewStyle().
 			Render(strings.Repeat("─", d.width-6)),
 	)
-	if d.viewport.TotalLineCount() > d.viewport.Height {
+	if d.viewport.TotalLineCount() > d.viewport.Height() {
 		scrollInfo = DimStyle.Render(
 			lipgloss.NewStyle().
 				Render(formatScrollPercent(scrollPercent, d.width-6)),

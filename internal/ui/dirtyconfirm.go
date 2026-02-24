@@ -1,7 +1,7 @@
 package ui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // DirtyConfirmModal shows a warning when working tree has uncommitted changes
@@ -26,7 +26,7 @@ func (m DirtyConfirmModal) Init() tea.Cmd {
 // Update handles messages
 func (m DirtyConfirmModal) Update(msg tea.Msg) (DirtyConfirmModal, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "y", "Y", "enter":
 			m.confirmed = true
