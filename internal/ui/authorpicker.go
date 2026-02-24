@@ -36,7 +36,7 @@ func (i AuthorItem) FilterValue() string {
 // AuthorDelegate is a custom delegate for author list rendering
 type AuthorDelegate struct{}
 
-func (d AuthorDelegate) Height() int                             { return 3 }
+func (d AuthorDelegate) Height() int                             { return 1 }
 func (d AuthorDelegate) Spacing() int                            { return 0 }
 func (d AuthorDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
@@ -57,6 +57,13 @@ func (d AuthorDelegate) Render(w io.Writer, m list.Model, index int, item list.I
 		content = fmt.Sprintf("%s (%s)", username, name)
 	} else {
 		content = username
+	}
+	maxWidth := m.Width() - 3 // left border=1, padding=1, margin=1
+	if maxWidth < 10 {
+		maxWidth = 10
+	}
+	if len(content) > maxWidth {
+		content = content[:maxWidth-3] + "..."
 	}
 
 	var line string
