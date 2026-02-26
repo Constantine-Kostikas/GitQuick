@@ -2,8 +2,11 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
+	"time"
 
 	"github.com/Constantine-Kostikas/GitQuick/internal/git"
 	"github.com/Constantine-Kostikas/GitQuick/internal/platform"
@@ -46,6 +49,7 @@ type Dashboard struct {
 	height          int
 	err             error
 	loading         bool
+	statusMsg       string // transient status message, auto-cleared
 }
 
 // MRsLoadedMsg is sent when MRs are loaded
@@ -77,6 +81,9 @@ type DirtyCheckMsg struct {
 	IsDirty bool
 	Err     error
 }
+
+// ClearStatusMsg clears the transient status message
+type ClearStatusMsg struct{}
 
 // NewDashboard creates a new dashboard
 func NewDashboard(p platform.Platform, repoPath string) Dashboard {
@@ -328,6 +335,23 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			return d, nil
+		case "t":
+			if d.activeTab == TabMRs {
+				if mr := d.mrList.SelectedMR(); mr != nil {
+					ticket := extractJiraTicket(mr.Title)
+					if ticket == "" {
+						d.statusMsg = "No Jira ticket in title"
+						return d, clearStatusAfter(2 * time.Second)
+					}
+					jiraURL := os.Getenv("JIRA_URL")
+					if jiraURL == "" {
+						d.statusMsg = "JIRA_URL not set"
+						return d, clearStatusAfter(2 * time.Second)
+					}
+					openBrowser(jiraURL + "/browse/" + ticket)
+				}
+			}
+			return d, nil
 		}
 
 	case RepoInfoLoadedMsg:
@@ -379,6 +403,10 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Dirty, show confirmation
 		confirm := NewDirtyConfirmModal(d.pendingCheckout.Branch)
 		d.dirtyConfirm = &confirm
+		return d, nil
+
+	case ClearStatusMsg:
+		d.statusMsg = ""
 		return d, nil
 	}
 
@@ -567,8 +595,28 @@ func (d Dashboard) renderTabs() string {
 }
 
 func (d Dashboard) renderFooter() string {
-	help := "↑↓ nav │ enter details │ w open │ f find │ r refresh │ a author │ m main │ q quit"
+	help := "↑↓ nav │ enter details │ w open │ t jira │ f find │ r refresh │ a author │ m main │ q quit"
+	if d.statusMsg != "" {
+		help += " │ " + d.statusMsg
+	}
 	return FooterStyle.Align(lipgloss.Center).Width(d.width).Render(help)
+}
+
+var jiraTicketRe = regexp.MustCompile(`#([A-Z]+-\d+)`)
+
+// extractJiraTicket returns the first Jira ticket ID found in s (e.g. "JUM-271"),
+// or empty string if none.
+func extractJiraTicket(s string) string {
+	m := jiraTicketRe.FindStringSubmatch(s)
+	if len(m) < 2 {
+		return ""
+	}
+	return m[1]
+}
+
+// clearStatusAfter returns a Cmd that fires ClearStatusMsg after duration d.
+func clearStatusAfter(d time.Duration) tea.Cmd {
+	return tea.Tick(d, func(time.Time) tea.Msg { return ClearStatusMsg{} })
 }
 
 // openBrowser opens a URL in the default browser
